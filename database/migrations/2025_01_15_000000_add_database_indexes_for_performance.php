@@ -14,7 +14,7 @@ class AddDatabaseIndexesForPerformance extends Migration
     public function up()
     {
         // Add indexes to users table for better performance
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('restaurant_users', function (Blueprint $table) {
             $table->index('firebase_uid', 'idx_users_firebase_uid');
             $table->index('status', 'idx_users_status');
             $table->index(['status', 'firebase_uid'], 'idx_users_status_firebase_uid');
@@ -22,7 +22,7 @@ class AddDatabaseIndexesForPerformance extends Migration
         });
 
         // Add indexes to vendor_users table
-        Schema::table('vendor_users', function (Blueprint $table) {
+        Schema::table('restaurant_vendor_users', function (Blueprint $table) {
             $table->index('user_id', 'idx_vendor_users_user_id');
             $table->index('uuid', 'idx_vendor_users_uuid');
         });

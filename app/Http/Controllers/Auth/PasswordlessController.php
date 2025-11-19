@@ -29,7 +29,7 @@ class PasswordlessController extends Controller
     public function sendMagicLink(Request $request)
     {
         $request->validate([
-            'email' => 'required|email|exists:users,email',
+            'email' => 'required|email|exists:restaurant_users,email',
         ], [
             'email.required' => 'Email address is required.',
             'email.email' => 'Please enter a valid email address.',
@@ -169,7 +169,7 @@ class PasswordlessController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|min:2',
-            'email' => 'required|email|max:255|unique:users,email',
+            'email' => 'required|email|max:255|unique:restaurant_users,email',
         ], [
             'name.required' => 'Name is required.',
             'name.min' => 'Name must be at least 2 characters.',

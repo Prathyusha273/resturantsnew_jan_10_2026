@@ -16,8 +16,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
-use Laravel\Socialite\Facades\Socialite;
-use Prettus\Validator\Exceptions\ValidatorException;
+//use Laravel\Socialite\Facades\Socialite;
+//use Prettus\Validator\Exceptions\ValidatorException;
 
 class AjaxController extends Controller
 {
@@ -31,9 +31,9 @@ class AjaxController extends Controller
         $password = $request->password;
         $exist = VendorUsers::where('email', $request->email)->get();
         $data = $exist->isEmpty();
-       
+
         if ($exist->isEmpty()) {
-            
+
             $user = User::create([
                 'name' => $request->email,
                 'email' => $request->email,
@@ -41,7 +41,7 @@ class AjaxController extends Controller
                 'isSubscribed'=> $request->isSubscribed
             ]);
 
-            DB::table('vendor_users')->insert([
+            DB::table('restaurant_vendor_users')->insert([
                 'user_id' => $user->id,
                 'uuid' => $uuid,
                 'email' => $request->email,

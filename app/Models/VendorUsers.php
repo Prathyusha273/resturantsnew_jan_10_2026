@@ -29,14 +29,14 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class VendorUsers extends Authenticatable
 {
-    
+
     /**
      * Validation rules
      *
      * @var array
      */
 
-    public $table = 'vendor_users';
+    public $table = 'restaurant_vendor_users';
     /**
      * The attributes that are mass assignable.
      *

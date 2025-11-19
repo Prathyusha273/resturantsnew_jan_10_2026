@@ -28,8 +28,6 @@
 
         <link href="{{ asset('css/style.css') }}" rel="stylesheet">
 
-        <link href="{{ asset('assets/plugins/select2/dist/css/select2.min.css') }}" rel="stylesheet">
-
         <!-- @yield('style') -->
 
     </head>
@@ -124,18 +122,6 @@
 
         <?php } ?>
 
-        <?php
-$countries = file_get_contents(public_path('countriesdata.json'));
-$countries = json_decode($countries);
-$countries = (array) $countries;
-$newcountries = [];
-$newcountriesjs = [];
-foreach ($countries as $keycountry => $valuecountry) {
-    $newcountries[$valuecountry->phoneCode] = $valuecountry;
-    $newcountriesjs[$valuecountry->phoneCode] = $valuecountry->code;
-}
-        ?>
-
         <section id="wrapper">
 
             <div class="login-register" <?php if (isset($_COOKIE['store_panel_color'])) { ?>
@@ -152,43 +138,48 @@ foreach ($countries as $keycountry => $valuecountry) {
 
                     <div class="card-body">
 
-                        @if (count($errors) > 0)
-
-                            @foreach ($errors->all() as $message)
-
-                                <div class="alert alert-danger display-hide">
-
-                                    <button class="close" data-close="alert"></button>
-
-                                    <span>{{ $message }}</span>
-
-                                </div>
-
-                            @endforeach
-
+                        @if (session('status'))
+                            <div class="alert alert-success">
+                                {{ session('status') }}
+                            </div>
                         @endif
 
-                        <form class="form-horizontal form-material" name="login" id="login-box">
+                        @if (session('error'))
+                            <div class="alert alert-danger">
+                                {{ session('error') }}
+                            </div>
+                        @endif
+
+                        @if (count($errors) > 0)
+                            <div class="alert alert-danger">
+                                <ul class="m-0 ps-3">
+                                    @foreach ($errors->all() as $message)
+                                        <li>{{ $message }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        <form class="form-horizontal form-material" name="login" id="login-box" method="POST"
+                            action="{{ route('login') }}" autocomplete="off" novalidate>
 
                             @csrf
 
                             <div class="box-title m-b-20">{{ __('Login') }}</div>
 
-                            <div class="form-group ">
+                            <div class="form-group">
 
                                 <div class="col-xs-12">
 
-                                    <input class="form-control" placeholder="{{ __('Email Address') }}" id="email"
-                                        type="email" class="form-control @error('email') is-invalid @enderror"
-                                        name="email" value="{{ old('email') }}" autocomplete="email" autofocus>
+                                    <input class="form-control @error('email') is-invalid @enderror"
+                                        placeholder="{{ __('Email Address') }}" id="email" type="email" name="email"
+                                        value="{{ old('email') }}" required autocomplete="email" autofocus>
 
                                 </div>
 
-                                <div class="error email_error"></div>
-
                                 @error('email')
 
-                                    <span class="invalid-feedback" role="alert">
+                                    <span class="invalid-feedback d-block" role="alert">
 
                                         <strong>{{ $message }}</strong>
 
@@ -204,15 +195,13 @@ foreach ($countries as $keycountry => $valuecountry) {
 
                                     <input id="password" placeholder="{{ __('Password') }}" type="password"
                                         class="form-control @error('password') is-invalid @enderror" name="password"
-                                        autocomplete="current-password">
+                                        required autocomplete="current-password">
 
                                 </div>
 
-                                <div class="error password_error"></div>
-
                                 @error('password')
 
-                                    <span class="invalid-feedback" role="alert">
+                                    <span class="invalid-feedback d-block" role="alert">
 
                                         <strong>{{ $message }}</strong>
 
@@ -222,14 +211,22 @@ foreach ($countries as $keycountry => $valuecountry) {
 
                             </div>
 
-                            <div class="forgot-password">
+                            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="remember" id="remember"
+                                        {{ old('remember') ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="remember">
+                                        {{ __('Remember Me') }}
+                                    </label>
+                                </div>
 
-                                <p><a href="{{ url('forgot-password') }}" class="standard-link"
-                                        target="_blank">{{ trans('lang.forgot_password') }}?</a></p>
-
+                                <div class="forgot-password">
+                                    <p class="mb-0">
+                                        <a href="{{ url('forgot-password') }}" class="standard-link"
+                                            target="_blank">{{ trans('lang.forgot_password') }}?</a>
+                                    </p>
+                                </div>
                             </div>
-
-                            <div class="error mt-3" id="password_required"></div>
 
                             <div class="form-group text-center m-t-20">
 
@@ -261,96 +258,6 @@ foreach ($countries as $keycountry => $valuecountry) {
 
                         </form>
 
-                        <form class="form-horizontal form-material" name="loginwithphon" id="login-with-phone-box"
-                            action="#" style="display:none">
-
-                            @csrf
-
-                            <div class="box-title m-b-20">{{ __('Login') }}</div>
-
-                            <div class="form-group " id="phone-box">
-
-                                <div class="col-xs-12">
-
-                                    <select name="country" id="country_selector">
-
-                                        <?php foreach ($newcountries as $keycy => $valuecy) { ?>
-
-                                        <?php $selected = ''; ?>
-
-                                        <option <?php echo $selected; ?> code="<?php echo $valuecy->code; ?>"
-                                            value="<?php echo $keycy; ?>">
-
-                                            +<?php echo $valuecy->phoneCode; ?> {{ $valuecy->countryName }}</option>
-
-                                        <?php } ?>
-
-                                    </select>
-
-                                    <input class="form-control" placeholder="Phone" id="phone" type="text"
-                                        class="form-control" name="phone" value="{{ old('phone') }}" required
-                                        autocomplete="phone" autofocus>
-
-                                    <div id="error2" class="err"></div>
-
-                                </div>
-
-                                @error('phone')
-
-                                    <span class="invalid-feedback" role="alert">
-
-                                        <strong>{{ $message }}</strong>
-
-                                    </span>
-
-                                @enderror
-
-                            </div>
-
-                            <div class="form-group " id="otp-box" style="display:none;">
-
-                                <input class="form-control" placeholder="OTP" id="verificationcode" type="text"
-                                    class="form-control" name="otp" value="{{ old('otp') }}" required autocomplete="otp"
-                                    autofocus>
-
-                            </div>
-
-                            <div id="recaptcha-container" style="display:none;"></div>
-
-                            <div class="form-group text-center m-t-20">
-
-                                <div class="col-xs-12">
-
-                                    <button type="button" style="display:none;" onclick="applicationVerifier()"
-                                        id="verify_btn"
-                                        class="btn btn-dark btn-lg btn-block text-uppercase waves-effect waves-light btn btn-primary">
-
-                                        OTP Verify
-
-                                    </button>
-
-                                    <button type="button" style="display:none;" onclick="sendOTP()" id="sendotp_btn"
-                                        class="btn btn-dark btn-lg btn-block text-uppercase waves-effect waves-light btn btn-primary">
-
-                                        Send OTP
-
-                                    </button>
-
-                                    <button type="button" onclick="loginBackClick()"
-                                        class="btn btn-dark btn-lg btn-block text-uppercase waves-effect waves-light btn btn-primary">
-
-                                        {{ __('Login') }} With Email
-
-                                    </button>
-
-                                    <div class="error mt-3" id="password_required_new"></div>
-
-                                </div>
-
-                            </div>
-
-                        </form>
-
                     </div>
 
                 </div>
@@ -360,7 +267,6 @@ foreach ($countries as $keycountry => $valuecountry) {
         </section>
 
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-        <script src="{{ asset('assets/plugins/select2/dist/js/select2.min.js') }}"></script>
         <!-- Impersonation check script -->
         <script>
         // Impersonation check with URL parameter support
@@ -476,533 +382,19 @@ foreach ($countries as $keycountry => $valuecountry) {
         })();
         </script>
 
-        <!-- Firebase Scripts - Load BEFORE any Firebase usage -->
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
-
-        <!-- Firebase Configuration -->
         <script>
-            // Firebase configuration
-            const firebaseConfig = {
-                apiKey: "{{ env('FIREBASE_APIKEY', 'AIzaSyAf_lICoxPh8qKE1QnVkmQYTFJXKkYmRXU') }}",
-                authDomain: "{{ env('FIREBASE_AUTH_DOMAIN', 'jippymart-27c08.firebaseapp.com') }}",
-                databaseURL: "{{ env('FIREBASE_DATABASE_URL', 'https://jippymart-27c08-default-rtdb.firebaseio.com') }}",
-                projectId: "{{ env('FIREBASE_PROJECT_ID', 'jippymart-27c08') }}",
-                storageBucket: "{{ env('FIREBASE_STORAGE_BUCKET', 'jippymart-27c08.firebasestorage.app') }}",
-                messagingSenderId: "{{ env('FIREBASE_MESSAAGING_SENDER_ID', '592427852800') }}",
-                appId: "{{ env('FIREBASE_APP_ID', '1:592427852800:web:f74df8ceb2a4b597d1a4e5') }}",
-                measurementId: "{{ env('FIREBASE_MEASUREMENT_ID', 'G-ZYBQYPZWCF') }}"
-            };
-
-            // Initialize Firebase
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-                console.log('✅ Firebase initialized successfully');
-            }
-        </script>
-
-        <script src="{{ asset('js/crypto-js.js') }}"></script>
-        <script src="{{ asset('js/jquery.cookie.js') }}"></script>
-        <script src="{{ asset('js/jquery.validate.js') }}"></script>
-
-        <script type="text/javascript">
-            // Wait for Firebase to be ready
             document.addEventListener('DOMContentLoaded', function() {
-                // Initialize Firebase services
-                var database = firebase.firestore();
-                var auth = firebase.auth();
-                var storage = firebase.storage();
-                
-                console.log('✅ Firebase services initialized');
-                
-                var documentVerificationEnable=false;
-                var subscriptionModel=false;
-                var commisionModel=false;
+                const loginForm = document.getElementById('login-box');
+                const loginButton = document.getElementById('login_btn');
 
-            // Load settings
-            database.collection('settings').doc("document_verification_settings").get().then(async function(snapshots) {
-                var documentVerification=snapshots.data();
-                if(documentVerification.isRestaurantVerification) {
-                    documentVerificationEnable=true;
-                }
-            });
-
-            var businessModel=database.collection('settings').doc("restaurant");
-            businessModel.get().then(async function(snapshots) {
-                var businessModelSettings=snapshots.data();
-                if(businessModelSettings.hasOwnProperty('subscription_model')&&
-                    businessModelSettings.subscription_model==true) {
-                    subscriptionModel=true;
-                }
-            });
-
-            var businessModel=database.collection('settings').doc("AdminCommission");
-            businessModel.get().then(async function(snapshots) {
-                var commissionSetting=snapshots.data();
-                if(commissionSetting.isEnabled) {
-                    commisionModel=true;
-                }
-            });
-
-            function loginClick() {
-                var email=$("#email").val();
-                var password=$("#password").val();
-                $(".email_error").hide();
-                $(".password_error").hide();
-
-                if(email=='') {
-                    $(".email_error").show();
-                    $(".email_error").html("");
-                    $(".email_error").append("<p>{{ trans('lang.enter_owners_email') }}</p>");
-                    window.scrollTo(0,0);
-                    return;
-                } else if(password=='') {
-                    $(".password_error").show();
-                    $(".password_error").html("");
-                    $(".password_error").append("<p>{{ trans('lang.enter_owners_password_error') }}</p>");
-                    window.scrollTo(0,0);
-                    return;
-                }
-
-                firebase.auth().signInWithEmailAndPassword(email,password).then(function(result) {
-                    var userEmail=result.user.email;
-                    database.collection("users").where("email","==",userEmail).get().then(async function(snapshots) {
-                        if(snapshots.docs.length<=0) {
-                            $("#password_required").html("<p>{{ trans('lang.email_user') }}</p>");
-                            return false;
-                        }
-
-                        var userData=snapshots.docs[0].data();
-                        if(userData.active==true) {
-                            if(userData.role=="vendor") {
-                                var userToken=result.user.getIdToken();
-                                var uid=result.user.uid;
-                                var user=userData.id;
-                                var firstName=userData.firstName;
-                                var lastName=userData.lastName;
-                                var imageURL=userData.profilePictureURL;
-                                var documentVerify=userData.hasOwnProperty('isDocumentVerify') ? userData.isDocumentVerify : false;
-
-                                setCookie('documentVerify',documentVerify);
-                                
-                                if(subscriptionModel||commisionModel) { 
-                                    if(userData.hasOwnProperty('subscriptionPlanId')&&userData.subscriptionPlanId!='' &&userData.subscriptionPlanId!=null) {
-                                        var isSubscribed='true';
-                                    }else{
-                                        var isSubscribed='false';
-                                    }
-                                }else{
-                                    var isSubscribed='';
-                                }
-
-                                var url="{{ route('setToken') }}";
-                                $.ajax({
-                                    type: 'POST',
-                                    url: url,
-                                    data: {
-                                        id: uid,
-                                        userId: user,
-                                        email: email,
-                                        password: password,
-                                        firstName: firstName,
-                                        lastName: lastName,
-                                        profilePicture: imageURL,
-                                        isSubscribed:isSubscribed
-                                    },
-                                    headers: {
-                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                    },
-                                    success: function(data) {
-                                        if(data.access) {
-                                            if(userData.hasOwnProperty('subscriptionPlanId')&&
-                                                userData.subscriptionPlanId!='' &&userData.subscriptionPlanId!=null) {
-                                                if(documentVerify==true||
-                                                    documentVerificationEnable==false) {
-                                                    window.location="{{ route('dashboard') }}";
-                                                } else {
-                                                    window.location="{{ route('vendors.document') }}";
-                                                }
-                                            } else {
-                                                if(subscriptionModel||commisionModel) {
-                                                   window.location="{{ route('subscription-plan.show') }}";
-                                                } else {
-                                                    if(documentVerify==true||
-                                                        documentVerificationEnable==false) {
-                                                        window.location="{{ route('dashboard') }}";
-                                                    } else {
-                                                        window.location="{{ route('vendors.document') }}";
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                })
-                            }
-                        } else {
-                            $("#password_required").css('color','black').html("<p>{{ trans('lang.waiting_for_approval') }}</p>");
-                            return false;
-                        }
-                    })
-                }).catch(function(error) {
-                    $("#password_required").html("The entered password is invalid. Please check and try again.");
-                });
-
-                return false;
-            }
-
-            // Phone login functions (simplified)
-            $('#phone').on('keypress',function(event) {
-                if(!(event.which>=48&&event.which<=57)) {
-                    document.getElementById('error2').innerHTML="Accept only Number";
-                    return false;
-                } else {
-                    document.getElementById('error2').innerHTML="";
-                    return true;
-                }
-            });
-
-            var provider=new firebase.auth.PhoneAuthProvider();
-
-            function loginWithPhoneClick() {
-                jQuery("#login-box").hide();
-                jQuery("#login-with-phone-box").show();
-                jQuery("#phone-box").show();
-                jQuery("#recaptcha-container").show();
-                jQuery("#sendotp_btn").show();
-                window.recaptchaVerifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{
-                    'size': 'invisible',
-                    'callback': (response) => {}
-                });
-            }
-
-            function loginBackClick() {
-                jQuery("#login-box").show();
-                jQuery("#login-with-phone-box").hide();
-                jQuery("#sendotp_btn").hide();
-            }
-
-            function sendOTP() {
-                $("#verificationcode").val(" ");
-                $(".otp_error").html('');
-                if(jQuery("#phone").val() == ""){
-                    jQuery("#password_required_new").html("Please enter phonenumber.");
-                } else {
-                    jQuery("#password_required_new").html("");
-                }
-
-                if(jQuery("#phone").val()&&jQuery("#country_selector").val()) {
-                    var phoneNumber='+'+jQuery("#country_selector").val()+''+jQuery("#phone").val();
-                    var phn = jQuery("#phone").val();
-                    database.collection("users").where("phoneNumber","==",phn).where("role","==",'vendor').where("active","==",true).get().then(async function(snapshots) {
-                        if(snapshots.docs.length) {
-                            var userData=snapshots.docs[0].data();
-                            firebase.auth().signInWithPhoneNumber(phoneNumber,window.recaptchaVerifier)
-                                .then(function(confirmationResult) {
-                                    window.confirmationResult=confirmationResult;
-                                    if(confirmationResult.verificationId) {
-                                        jQuery("#phone-box").hide();
-                                        jQuery("#recaptcha-container").hide();
-                                        jQuery("#otp-box").show();
-                                        jQuery("#verify_btn").show();
-                                    }
-                                });
-                        } else {
-                            jQuery("#password_required_new").html("User is inactive or not found.");
-                        }
+                if (loginForm && loginButton) {
+                    loginForm.addEventListener('submit', function() {
+                        loginButton.disabled = true;
+                        loginButton.classList.add('disabled');
+                        loginButton.innerText = '{{ __('Logging In...') }}';
                     });
                 }
-            }
-
-            function applicationVerifier() {
-                var code=$('#verificationcode').val().trim();
-                if(code==="") {
-                    $('#password_required_new').html('Please Enter OTP');
-                    return;
-                }
-
-                var phone=$('#phone').val().trim();
-                var countryCode=$('#country_selector').val().trim();
-                if(phone==="") {
-                    $('#password_required_new').html('Please Enter Phone Number');
-                    return;
-                }
-
-                var fullPhoneNumber='+'+countryCode+phone;
-
-                database.collection("users").where('phoneNumber','==',fullPhoneNumber).get()
-                    .then(function(snapshots_login) {
-                        if(snapshots_login.empty) {
-                            $('#password_required_new').html("No user found with this phone number.");
-                            return;
-                        }
-
-                        var userData=snapshots_login.docs[0].data();
-                        if(userData.role==="vendor"&&userData.active===true) {
-                            var uid=userData.id;
-                            var firstName=userData.firstName;
-                            var phoneNumber=userData.phoneNumber;
-                            var lastName=userData.lastName;
-                            var imageURL='';
-                            var documentVerify=userData.hasOwnProperty('isDocumentVerify')? userData.isDocumentVerify: false;
-
-                            setCookie('documentVerify',documentVerify);
-
-                            if(subscriptionModel||commisionModel) {
-                                if(userData.hasOwnProperty('subscriptionPlanId')&&userData.subscriptionPlanId!='' &&userData.subscriptionPlanId!=null) {
-                                    var isSubscribed='true';
-                                } else {
-                                    var isSubscribed='false';
-                                }
-                            } else {
-                                var isSubscribed='';
-                            }
-
-                            $.ajax({
-                                type: 'POST',
-                                url: "{{ route('setToken') }}",
-                                data: {
-                                    id: uid,
-                                    userId: uid,
-                                    email: phoneNumber,
-                                    password: '',
-                                    firstName: firstName,
-                                    lastName: lastName,
-                                    profilePicture: imageURL,
-                                    isSubscribed:isSubscribed
-                                },
-                                headers: {
-                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                },
-                                success: function(data) {
-                                    if(data.access) {
-                                        if(userData.hasOwnProperty('subscriptionPlanId')&&
-                                            userData.subscriptionPlanId!='' &&userData.subscriptionPlanId!=null) {
-                                            if(documentVerify===true||documentVerificationEnable=== false) {
-                                                window.location="{{ route('dashboard') }}";
-                                            } else {
-                                                window.location="{{ route('vendors.document') }}";
-                                            }
-                                        } else {
-                                            if(subscriptionModel||commisionModel) {
-                                                window.location="{{ route('subscription-plan.show') }}";
-                                            } else {
-                                                if(documentVerify==true||
-                                                    documentVerificationEnable==false) {
-                                                    window.location="{{ route('dashboard') }}";
-                                                } else {
-                                                    window.location="{{ route('vendors.document') }}";
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        $('#password_required_new').html("Failed to set token.");
-                                    }
-                                },
-                                error: function() {
-                                    $('#password_required_new').html("An error occurred while setting the token.");
-                                }
-                            });
-                        } else {
-                            $('#password_required_new').html("User is inactive or not found.");
-                        }
-                    })
-                    .catch(function(error) {
-                        console.error("Error fetching user data: ",error);
-                        $('#password_required_new').html("An error occurred while verifying the code.");
-                    });
-            }
-
-            var newcountriesjs='<?php echo json_encode($newcountriesjs); ?>';
-            var newcountriesjs=JSON.parse(newcountriesjs);
-
-            function formatState(state) {
-                if(!state.id) {
-                    return state.text;
-                }
-                var baseUrl="<?php echo URL::to('/'); ?>/flags/120/";
-                var $state=$(
-                    '<span><img src="'+baseUrl+'/'+newcountriesjs[state.element.value].toLowerCase()+
-                    '.png" class="img-flag" /> '+state.text+'</span>'
-                );
-                return $state;
-            }
-
-            function formatState2(state) {
-                if(!state.id) {
-                    return state.text;
-                }
-                var baseUrl="<?php echo URL::to('/'); ?>/flags/120/"
-                var $state=$(
-                    '<span><img class="img-flag" /> <span></span></span>'
-                );
-                $state.find("span").text(state.text);
-                $state.find("img").attr("src",baseUrl+"/"+newcountriesjs[state.element.value].toLowerCase()+".png");
-                return $state;
-            }
-
-            jQuery(document).ready(function() {
-                jQuery("#country_selector").select2({
-                    templateResult: formatState,
-                    templateSelection: formatState2,
-                    placeholder: "Select Country",
-                    allowClear: true
-                });
-
-                var loginForm=document.forms['login'];
-                loginForm.addEventListener('submit',function(event) {
-                    event.preventDefault();
-                    loginClick();
-                });
             });
-
-            var ref=database.collection('settings').doc("globalSettings");
-
-            $(document).ready(function() {
-                ref.get().then(async function(snapshots) {
-                    var globalSettings=snapshots.data();
-                    store_panel_color=globalSettings.store_panel_color;
-                    setCookie('meta_title',globalSettings.meta_title,365);
-                    document.title=globalSettings.meta_title;
-                    setCookie('store_panel_color',store_panel_color,365);
-                    setCookie('favicon',globalSettings.favicon,365);
-                })
-            });
-
-            function setCookie(cname,cvalue,exdays) {
-                const d=new Date();
-                d.setTime(d.getTime()+(exdays*24*60*60*1000));
-                let expires="expires="+d.toUTCString();
-                document.cookie=cname+"="+cvalue+";"+expires+";path=/";
-            }
-
-            function googleAuth() {
-                var provider=new firebase.auth.GoogleAuthProvider();
-                firebase.auth().signInWithPopup(provider)
-                    .then(function(result) {
-                        var user=result.user;
-                        saveUserData(user);
-                    }).catch(function(error) {
-                        console.error("Google Sign-In Error:",error.message);
-                    });
-            }
-
-            function saveUserData(user) {
-                jQuery('#data-table_processing').show();
-                database.collection("users").doc(user.uid).get().then(async function(snapshots_login) {
-                    var userData=snapshots_login.data();
-                    if(userData) {
-                        if(userData.role=="vendor"&&userData.active) {
-                            var uid=userData.id;
-                            var firstName=userData.firstName;
-                            var phoneNumber=userData.phoneNumber;
-                            var lastName=userData.lastName;
-                            var imageURL='';
-                            var documentVerify=userData.hasOwnProperty('isDocumentVerify')? userData.isDocumentVerify:false;
-
-                            setCookie('documentVerify',documentVerify);
-                            if(subscriptionModel||commisionModel) {
-                                if(userData.hasOwnProperty('subscriptionPlanId')&&userData.subscriptionPlanId!='' &&userData.subscriptionPlanId!=null) {
-                                    var isSubscribed='true';
-                                } else {
-                                    var isSubscribed='false';
-                                }
-                            } else {
-                                var isSubscribed='';
-                            }
-                            $.ajax({
-                                type: 'POST',
-                                url: "{{ route('setToken') }}",
-                                data: {
-                                    id: uid,
-                                    userId: uid,
-                                    email: phoneNumber,
-                                    password: '',
-                                    firstName: firstName,
-                                    lastName: lastName,
-                                    profilePicture: imageURL,
-                                    provider: "google",
-                                    isSubscribed:isSubscribed
-                                },
-                                headers: {
-                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                },
-                                success: function(data) {
-                                    if(data.access) {
-                                        jQuery('#data-table_processing').hide();
-                                        if(userData.hasOwnProperty('subscriptionPlanId')&&
-                                            userData.subscriptionPlanId!='' &&userData.subscriptionPlanId!=null) {
-                                            if(documentVerify===true||
-                                                documentVerificationEnable=== false) {
-                                                window.location="{{ route('dashboard') }}";
-                                            } else {
-                                                window.location="{{ route('vendors.document') }}";
-                                            }
-                                        } else {
-                                            if(subscriptionModel||commisionModel) {
-                                                window.location="{{ route('subscription-plan.show') }}";
-                                            } else {
-                                                if(documentVerify==true||
-                                                    documentVerificationEnable==false) {
-                                                    window.location="{{ route('dashboard') }}";
-                                                } else {
-                                                    window.location="{{ route('vendors.document') }}";
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        jQuery('#data-table_processing').hide();
-                                        $(".email_error").hide();
-                                        $(".password_error").show();
-                                        $(".password_error").html("");
-                                        window.scrollTo(0,0);
-                                        $(".password_error").append("<p>{{ trans('lang.set_token_error') }}</p>");
-                                    }
-                                },
-                                error: function() {
-                                    jQuery('#data-table_processing').hide();
-                                    $(".email_error").hide();
-                                    $(".password_error").show();
-                                    $(".password_error").html("");
-                                    window.scrollTo(0,0);
-                                    $(".password_error").append("<p>{{ trans('lang.set_token_error') }}</p>");
-                                }
-                            });
-                        } else {
-                            jQuery('#data-table_processing').hide();
-                            $(".email_error").hide();
-                            $(".password_error").show();
-                            $(".password_error").html("");
-                            window.scrollTo(0,0);
-                            $(".password_error").append("<p>{{ trans('lang.user_active_error') }}</p>");
-                        }
-                    } else {
-                        var loginType='google';
-                        var phoneNumber=user.phoneNumber||'';
-                        var firstName=user.displayName? user.displayName.split(' ')[0]:'';
-                        var lastName=user.displayName? user.displayName.split(' ')[1]:'';
-                        var uuid=user.uid;
-                        var email=user.email||'';
-                        var photoURL=user.photoURL||'';
-                        var createdAtman=firebase.firestore.Timestamp.fromDate(new Date());
-                        var redirectUrl=`{{ url('signup') }}?uuid=${encodeURIComponent(uuid)}&loginType=${encodeURIComponent(loginType)}&phoneNumber=${encodeURIComponent(phoneNumber)}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&photoURL=${encodeURIComponent(photoURL)}&createdAt=${createdAtman.toDate()}`;
-                        jQuery('#data-table_processing').hide();
-                        window.location.href=redirectUrl;
-                    }
-                }).catch(function(error) {
-                    console.log(error);
-                    jQuery('#data-table_processing').hide();
-                    $(".email_error").hide();
-                    $(".password_error").show();
-                    $(".password_error").html("");
-                    window.scrollTo(0,0);
-                    $(".password_error").append("<p>"+error.message+"</p>");
-                });
-            }
-            
-            }); // End of DOMContentLoaded
         </script>
 
     </body>
