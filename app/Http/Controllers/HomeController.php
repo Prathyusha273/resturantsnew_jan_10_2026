@@ -32,30 +32,33 @@ class HomeController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $id = Auth::id();
-        $exist = VendorUsers::where('user_id',$id)->first();
-        $vendorUuid = $exist ? $exist->uuid : null;
-
-        $vendor = $vendorUuid ? Vendor::where('author', $vendorUuid)->first() : null;
-
+    
+        // Get firebase id from users table
+        $firebaseId = $user->firebase_id;
+    
+        // Prefetch all data in optimized queries - fetch all required data at once
+        $vendor = Vendor::where('author', $firebaseId)->first();
         $currency = Currency::where('isActive', true)->first();
-
+    
+        // Set default currency meta if currency not found
         $currencyMeta = [
             'symbol' => $currency->symbol ?? '₹',
             'symbol_at_right' => (bool) ($currency->symbolAtRight ?? false),
             'decimal_digits' => $currency->decimal_degits ?? 2,
         ];
-
+    
         $orders = collect();
         $productCount = 0;
-
+    
+        // Load vendor-specific data with optimized prefetch queries
         if ($vendor) {
+            // Fetch all orders and product count for this vendor
             $orders = RestaurantOrder::where('vendorID', $vendor->id)->get();
             $productCount = VendorProduct::where('vendorID', $vendor->id)->count();
         }
-
+    
         $dashboard = $this->buildDashboardData($orders, $productCount, $currencyMeta);
-
+    
         return view('home', [
             'stats' => $dashboard['totals'],
             'statusCounts' => $dashboard['status_counts'],
@@ -79,8 +82,8 @@ class HomeController extends Controller
     public function dashboard()
     {
         return view('dashboard');
-    }    
-    
+    }
+
     public function users()
     {
         return view('users');

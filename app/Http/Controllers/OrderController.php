@@ -19,7 +19,7 @@ class OrderController extends Controller
     {
     	$user = Auth::user();
         $id = Auth::id();
-        $exist = VendorUsers::where('user_id',$id)->first();
+        $exist = VendorUsers::where('firebase_id',$id)->first();
         $id=$exist->uuid;
         return view("orders.index")->with('id',$id);
     }
@@ -33,7 +33,7 @@ class OrderController extends Controller
     {
     	$user = Auth::user();
         $id = Auth::id();
-        $exist = VendorUsers::where('user_id',$id)->first();
+        $exist = VendorUsers::where('firebase_id',$id)->first();
         $id=$exist->uuid;
     	return view('orders.placed')->with('id', $id);
     }
@@ -42,7 +42,7 @@ class OrderController extends Controller
     {
     	$user = Auth::user();
         $id = Auth::id();
-        $exist = VendorUsers::where('user_id',$id)->first();
+        $exist = VendorUsers::where('firebase_id',$id)->first();
         $id=$exist->uuid;
     	return view('orders.accepted')->with('id', $id);
     }
@@ -51,11 +51,11 @@ class OrderController extends Controller
     {
     	$user = Auth::user();
         $id = Auth::id();
-        $exist = VendorUsers::where('user_id',$id)->first();
+        $exist = VendorUsers::where('firebase_id',$id)->first();
         $id=$exist->uuid;
     	return view('orders.rejected')->with('id', $id);
     }
-    
+
     public function sendnotification(Request $request)
     {
         $orderStatus=$request->orderStatus;
@@ -70,7 +70,7 @@ class OrderController extends Controller
             $access_token = $client_token['access_token'];
 
             $fcm_token = $request->fcm;
-            
+
             if(!empty($access_token) && !empty($fcm_token)){
 
                 $projectId = env('FIREBASE_PROJECT_ID');
@@ -101,7 +101,7 @@ class OrderController extends Controller
                 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
                 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-                
+
                 $result = curl_exec($ch);
                 if ($result === FALSE) {
                     die('FCM Send Error: ' . curl_error($ch));
@@ -125,7 +125,7 @@ class OrderController extends Controller
             $response['success'] = false;
             $response['message'] = 'Firebase credentials file not found.';
         }
-    
+
         return response()->json($response);
     }
 

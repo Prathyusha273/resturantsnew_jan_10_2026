@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use App\Models\VendorUsers;
 
 class User extends Authenticatable
 {
@@ -65,15 +64,17 @@ class User extends Authenticatable
         'userBankDetails' => 'array',
     ];
 
+    /**
+     * Use firebase_id as the auth identifier so Auth::id() returns it.
+     */
+    public function getAuthIdentifierName()
+    {
+        return 'firebase_id';
+    }
+
     public function getvendorId()
     {
-        if (! empty($this->vendorID)) {
-            return $this->vendorID;
-        }
-
-        $link = VendorUsers::where('user_id', $this->id)->first();
-
-        return $link?->uuid;
+        return $this->vendorID ?? null;
     }
 
     public function getNameAttribute()

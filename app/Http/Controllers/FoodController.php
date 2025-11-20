@@ -18,7 +18,7 @@ class FoodController extends Controller
      *
      * @return void
      */
-    
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -28,7 +28,7 @@ class FoodController extends Controller
     {
       $user = Auth::user();
       $id = Auth::id();
-      $exist = VendorUsers::where('user_id',$id)->first();
+      $exist = VendorUsers::where('firebase_id',$id)->first();
       $id=$exist->uuid;
 
    		return view("foods.index")->with('id',$id);
@@ -101,7 +101,7 @@ class FoodController extends Controller
             ]);
 
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Validation failed. Please check your input and try again.'
             ], 400);
         }
@@ -118,7 +118,7 @@ class FoodController extends Controller
 
         // Set headers
         $headers = [
-            'name', 'price', 'description', 'vendorID', 'categoryID', 
+            'name', 'price', 'description', 'vendorID', 'categoryID',
             'disPrice', 'publish', 'nonveg', 'isAvailable', 'photo'
         ];
 
@@ -128,7 +128,7 @@ class FoodController extends Controller
 
         // Add sample data
         $sampleData = [
-            'Sample Food Item', 10.99, 'This is a sample food description', 
+            'Sample Food Item', 10.99, 'This is a sample food description',
             'vendor_id_here', 'category_id_here', 8.99, 1, 0, 1, 'photo_url_here'
         ];
 
@@ -140,12 +140,12 @@ class FoodController extends Controller
         $writer = new Xlsx($spreadsheet);
         $filename = 'food_import_template.xlsx';
         $path = storage_path('app/temp/' . $filename);
-        
+
         // Ensure temp directory exists
         if (!file_exists(dirname($path))) {
             mkdir(dirname($path), 0755, true);
         }
-        
+
         $writer->save($path);
 
         return response()->download($path, $filename)->deleteFileAfterSend();
@@ -157,7 +157,7 @@ class FoodController extends Controller
     public function import(Request $request)
     {
         try {
-            
+
             $request->validate([
                 'file' => 'required|file|mimes:xls,xlsx|max:2048'
             ]);
@@ -169,21 +169,21 @@ class FoodController extends Controller
 
             // Remove header row
             $headers = array_shift($rows);
-            
+
             $successCount = 0;
             $errorCount = 0;
             $errors = [];
-            
+
             // Process in chunks to prevent memory issues
             $chunkSize = 50; // Process 50 rows at a time
             $chunks = array_chunk($rows, $chunkSize);
-            
+
             foreach ($chunks as $chunkIndex => $chunk) {
                 // Check if connection is still alive
                 if (connection_aborted()) {
                     break;
                 }
-                
+
                 foreach ($chunk as $rowIndex => $row) {
                     $actualIndex = ($chunkIndex * $chunkSize) + $rowIndex;
                 try {
@@ -192,7 +192,7 @@ class FoodController extends Controller
                     }
 
                     $data = array_combine($headers, $row);
-                    
+
                     // Validate required fields
                     if (empty($data['name']) || empty($data['price'])) {
                         $errors[] = "Row " . ($actualIndex + 2) . ": Name and price are required";
@@ -238,7 +238,7 @@ class FoodController extends Controller
                     $errors[] = "Row " . ($actualIndex + 2) . ": " . $e->getMessage();
                     $errorCount++;
                 }
-                
+
                 // Clear memory after each chunk
                 if ($rowIndex === count($chunk) - 1) {
                     unset($chunk);
@@ -266,7 +266,7 @@ class FoodController extends Controller
     {
         $projectId = env('FIREBASE_PROJECT_ID');
         $apiKey = env('FIREBASE_APIKEY');
-        
+
         if (!$projectId || !$apiKey) {
             throw new \Exception('Firebase configuration not found');
         }
@@ -286,7 +286,7 @@ class FoodController extends Controller
         }
 
         $url = "https://firestore.googleapis.com/v1/projects/{$projectId}/databases/(default)/documents/vendor_products?key={$apiKey}";
-        
+
         $response = Http::post($url, [
             'fields' => $firebaseData
         ]);

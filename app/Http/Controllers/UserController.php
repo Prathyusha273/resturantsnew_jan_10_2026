@@ -17,35 +17,57 @@ class UserController extends Controller
 {
 
 	public function __construct()
-    
+
     {
         $this->middleware('auth');
     }
-	
+
 
 	public function profile()
   	{
       	$user = Auth::user();
+
+        if (!$user) {
+            abort(404, 'User not found');
+        }
+
+        // Get firebase_id from authenticated user
+        $firebaseId = Auth::id();
         
-        $id = Auth::id();
+        // Try to find VendorUsers record with firebase_id
+        $exist = VendorUsers::where('firebase_id', $firebaseId)->first();
         
-        $exist = VendorUsers::where('user_id',$id)->first();
-        
-        $id=$exist->uuid;
-      	
-      	return view('users.profile')->with('id',$id);
+        // Use uuid if exists, otherwise fallback to _id or user id
+        $id = ($exist && isset($exist->uuid)) ? $exist->uuid : ($user->_id ?? $user->id ?? null);
+
+        if (!$id) {
+            abort(404, 'User profile ID not found');
+        }
+
+      	return view('users.profile')->with('id', $id);
   	}
   public function restaurant()
   {
    	  $user = Auth::user();
-        
-      $id = Auth::id();
-        
-      $exist = VendorUsers::where('user_id',$id)->first();
-        
-      $id=$exist->uuid;
-      	
-      return view('restaurant.myrestaurant')->with('id',$id);
+
+      if (!$user) {
+          abort(404, 'User not found');
+      }
+
+      // Get firebase_id from authenticated user
+      $firebaseId = Auth::id();
+      
+      // Try to find VendorUsers record with firebase_id
+      $exist = VendorUsers::where('firebase_id', $firebaseId)->first();
+      
+      // Use uuid if exists, otherwise fallback to _id or user id
+      $id = ($exist && isset($exist->uuid)) ? $exist->uuid : ($user->_id ?? $user->id ?? null);
+
+      if (!$id) {
+          abort(404, 'Restaurant ID not found');
+      }
+
+      return view('restaurant.myrestaurant')->with('id', $id);
   }
 
 }

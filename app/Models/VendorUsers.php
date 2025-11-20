@@ -36,7 +36,7 @@ class VendorUsers extends Authenticatable
      * @var array
      */
 
-    public $table = 'restaurant_vendor_users';
+    public $table = 'users';
     /**
      * The attributes that are mass assignable.
      *

@@ -17,7 +17,7 @@ class WithdrawMethodController extends Controller
     {
         $user = Auth::user();
         $id = Auth::id();
-        $exist = VendorUsers::where('user_id', $id)->first();
+        $exist = VendorUsers::where('firebase_id', $id)->first();
         $id = $exist->uuid;
         return view("withdraw_method.index")->with('id', $id);
 
@@ -26,7 +26,7 @@ class WithdrawMethodController extends Controller
     {
         $user = Auth::user();
         $id = Auth::id();
-        $exist = VendorUsers::where('user_id', $id)->first();
+        $exist = VendorUsers::where('firebase_id', $id)->first();
         $id = $exist->uuid;
         return view("withdraw_method.create")->with('id', $id);
 
