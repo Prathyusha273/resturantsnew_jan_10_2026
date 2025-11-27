@@ -455,87 +455,6 @@
                 }
             });
         </script>
-{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>--}}
-{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>--}}
-{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>--}}
-{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>--}}
-{{--        <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>--}}
-
-        <!-- Firebase Configuration -->
-{{--        <script>--}}
-{{--            // Check if Firebase is already loaded and initialized--}}
-{{--            if (typeof firebase === 'undefined') {--}}
-{{--                console.error('❌ Firebase SDK not loaded');--}}
-{{--            } else {--}}
-{{--                // Firebase configuration - Same as login page--}}
-{{--                const firebaseConfig = {--}}
-{{--                    apiKey: "{{ env('FIREBASE_APIKEY', 'AIzaSyAf_lICoxPh8qKE1QnVkmQYTFJXKkYmRXU') }}",--}}
-{{--                    authDomain: "{{ env('FIREBASE_AUTH_DOMAIN', 'jippymart-27c08.firebaseapp.com') }}",--}}
-{{--                    databaseURL: "{{ env('FIREBASE_DATABASE_URL', 'https://jippymart-27c08-default-rtdb.firebaseio.com') }}",--}}
-{{--                    projectId: "{{ env('FIREBASE_PROJECT_ID', 'jippymart-27c08') }}",--}}
-{{--                    storageBucket: "{{ env('FIREBASE_STORAGE_BUCKET', 'jippymart-27c08.firebasestorage.app') }}",--}}
-{{--                    messagingSenderId: "{{ env('FIREBASE_MESSAAGING_SENDER_ID', '592427852800') }}",--}}
-{{--                    appId: "{{ env('FIREBASE_APP_ID', '1:592427852800:web:f74df8ceb2a4b597d1a4e5') }}",--}}
-{{--                    measurementId: "{{ env('FIREBASE_MEASUREMENT_ID', 'G-ZYBQYPZWCF') }}"--}}
-{{--                };--}}
-
-{{--                // Initialize Firebase only if not already initialized--}}
-{{--                if (!firebase.apps || firebase.apps.length === 0) {--}}
-{{--                    try {--}}
-{{--                        firebase.initializeApp(firebaseConfig);--}}
-{{--                        console.log('✅ Firebase initialized in main layout');--}}
-
-{{--                        // Initialize Firestore database globally--}}
-{{--                        window.database = firebase.firestore();--}}
-{{--                        window.storage = firebase.storage();--}}
-{{--                        window.auth = firebase.auth();--}}
-
-{{--                        console.log('✅ Firebase services initialized');--}}
-{{--                    } catch (error) {--}}
-{{--                        console.error('❌ Firebase initialization error:', error);--}}
-{{--                    }--}}
-{{--                } else {--}}
-{{--                    console.log('✅ Firebase already initialized, skipping duplicate initialization');--}}
-{{--                    // Still set up global references--}}
-{{--                    if (!window.database) {--}}
-{{--                        window.database = firebase.firestore();--}}
-{{--                        window.storage = firebase.storage();--}}
-{{--                        window.auth = firebase.auth();--}}
-{{--                    }--}}
-{{--                }--}}
-{{--            }--}}
-{{--        </script>--}}
-{{--        <script src="https://unpkg.com/geofirestore/dist/geofirestore.js"></script>--}}
-{{--        <script src="https://cdn.firebase.com/libs/geofire/5.0.1/geofire.min.js"></script>--}}
-{{--        <script src="{{ asset('js/crypto-js.js') }}"></script>--}}
-{{--        <script src="{{ asset('js/jquery.cookie.js') }}"></script>--}}
-{{--        <script>--}}
-{{--            // Fix jQuery cookie initialization--}}
-{{--            $(document).ready(function() {--}}
-{{--                // Initialize jQuery cookie with proper error handling--}}
-{{--                if (typeof $.cookie === 'undefined') {--}}
-{{--                    console.warn('jQuery cookie plugin not loaded properly');--}}
-{{--                }--}}
-{{--            });--}}
-
-{{--            // Shared hosting optimizations--}}
-{{--            // Prevent memory leaks by cleaning up intervals and Firebase listeners--}}
-{{--            window.addEventListener('beforeunload', function() {--}}
-{{--                // Clear any running intervals--}}
-{{--                for (let i = 1; i < 10000; i++) {--}}
-{{--                    clearInterval(i);--}}
-{{--                    clearTimeout(i);--}}
-{{--                }--}}
-
-{{--                // Clean up Firebase listeners--}}
-{{--                if (typeof orderListener !== 'undefined') {--}}
-{{--                    orderListener();--}}
-{{--                }--}}
-{{--                if (typeof tableListener !== 'undefined') {--}}
-{{--                    tableListener();--}}
-{{--                }--}}
-{{--            });--}}
-{{--        </script>--}}
         <script src="{{ asset('js/jquery.validate.js') }}"></script>
         <script src="{{ asset('js/chosen.jquery.js') }}"></script>
         <script src="{{ asset('js/bootstrap-tagsinput.js') }}"></script>
@@ -559,42 +478,118 @@
             src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 
         @yield('scripts')
+        <script>
+            (function () {
+                let lastOrderId = "";
+                let ringtoneAudio = null;
+                let soundEnabled = true; // for future toggle button support
 
-{{--        <script type="text/javascript">--}}
-{{--            var route1='{{ route('orders.edit', ':id') }}';--}}
-{{--            var booktable='{{ route('booktable.edit', ':id') }}';--}}
-{{--            var database=firebase.firestore();--}}
-{{--            var pageloadded=0;--}}
+                const POLL = 2000;
+                const vendorID = "{{ $vendorIdentifier }}"; // provided from backend
+                const ENDPOINT_LATEST = `/orders/latest-id/vendor/${vendorID}`;
+                const ENDPOINT_ORDER = (id) => `/orders/get/${id}`;
+                const ENDPOINT_RINGTONE = "/settings/ringtone";
 
-{{--            // Override existing Firebase auth listener to respect impersonation--}}
-{{--            (function() {--}}
-{{--                // Check if we're in the middle of an impersonation--}}
-{{--                const impersonationInProgress = localStorage.getItem('impersonation_in_progress');--}}
-{{--                const impersonationTargetUrl = localStorage.getItem('impersonation_target_url');--}}
+                const FALLBACK_BEEP =
+                    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT";
 
-{{--                if (impersonationInProgress === 'true' && impersonationTargetUrl) {--}}
-{{--                    console.log('🔐 Impersonation in progress, overriding default redirect');--}}
+                // Load ringtone from settings table (if offline → fallback beep)
+                function loadRingtone() {
+                    $.get(ENDPOINT_RINGTONE, function (res) {
+                        try {
+                            if (res?.ringtone) {
+                                ringtoneAudio = new Audio(res.ringtone);
+                                ringtoneAudio.volume = 1.0;
+                                console.log("🔔 Ringtone loaded:", res.ringtone);
+                            } else {
+                                ringtoneAudio = new Audio(FALLBACK_BEEP);
+                                ringtoneAudio.volume = 0.3;
+                            }
+                        } catch (e) {
+                            ringtoneAudio = new Audio(FALLBACK_BEEP);
+                            ringtoneAudio.volume = 0.3;
+                        }
+                    }).fail(() => {
+                        ringtoneAudio = new Audio(FALLBACK_BEEP);
+                        ringtoneAudio.volume = 0.3;
+                    });
+                }
 
-{{--                    // Override any existing onAuthStateChanged listeners--}}
-{{--                    if (typeof firebase !== 'undefined' && firebase.auth) {--}}
-{{--                        firebase.auth().onAuthStateChanged(function(user) {--}}
-{{--                            if (user && impersonationInProgress === 'true') {--}}
-{{--                                console.log('✅ User authenticated during impersonation, redirecting to:', impersonationTargetUrl);--}}
+                // Play sound once
+                function playNotificationSound() {
+                    if (!soundEnabled) return;
+                    try {
+                        if (!ringtoneAudio) {
+                            ringtoneAudio = new Audio(FALLBACK_BEEP);
+                            ringtoneAudio.volume = 0.3;
+                        }
+                        ringtoneAudio.currentTime = 0;
+                        ringtoneAudio.play().catch(() => {});
 
-{{--                                // Clear the impersonation flags--}}
-{{--                                localStorage.removeItem('impersonation_in_progress');--}}
-{{--                                localStorage.removeItem('impersonation_target_url');--}}
+                        // ⏳ stop after 5 seconds
+                        setTimeout(() => {
+                            try { ringtoneAudio.pause(); } catch(e) {}
+                        }, 10000);
 
-{{--                                // Redirect to the target URL--}}
-{{--                                setTimeout(function() {--}}
-{{--                                    window.location.href = impersonationTargetUrl;--}}
-{{--                                }, 500);--}}
-{{--                            }--}}
-{{--                        });--}}
-{{--                    }--}}
-{{--                }--}}
-{{--            })();--}}
+                    } catch (e) {
+                        console.error("playNotificationSound error:", e);
+                    }
+                }
 
+                // Show popup when new order detected
+                function showOrderPopup(order) {
+                    if (order.scheduleTime) {
+                        $('.order_placed_subject').text("Schedule Order");
+                        $('.order_placed_msg').text("You have a new schedule order");
+                    } else {
+                        $('.order_placed_subject').text("New Order");
+                        $('.order_placed_msg').text("You have a new order");
+                    }
+
+                    $("#notification_add_order_a").attr("href", "/orders/edit/" + order.id);
+
+                    $('#notification_add_order').modal('show');
+                    playNotificationSound();
+
+                    // Auto reload only if user is on orders page
+                    if (window.location.pathname.includes("/orders")) {
+                        setTimeout(() => window.location.reload(), 7000);
+                    }
+                }
+
+                // Main polling listener
+                function startListener() {
+                    setInterval(() => {
+                        $.get(ENDPOINT_LATEST, function (res) {
+                            const newest = res.latest_id ?? "";
+
+                            // first run → only store latest, don't trigger popup
+                            if (!lastOrderId) {
+                                lastOrderId = newest;
+                                return;
+                            }
+
+                            // New order compared to previous
+                            if (newest && newest !== lastOrderId) {
+                                $.get(ENDPOINT_ORDER(newest), function (order) {
+                                    showOrderPopup(order);
+                                });
+                                lastOrderId = newest;
+                            }
+                        });
+                    }, POLL);
+                }
+
+                $(document).ready(() => {
+                    loadRingtone();
+                    startListener();
+                });
+
+            })();
+        </script>
+
+
+        {{--        <script type="text/javascript">--}}
 {{--            // Duplicate impersonation script removed - using the improved version above--}}
 {{--            var version=database.collection('settings').doc("Version");--}}
 {{--            var placeholder = database.collection('settings').doc('placeHolderImage');--}}
@@ -1025,47 +1020,6 @@
 {{--                    console.error("Error deleting document and images:",error);--}}
 {{--                }--}}
 {{--            };--}}
-
-
-{{--                 database.collection('users').where('id','==',"{{ $currentUserId }}").get().then(async function(snapshot) {--}}
-{{--                    var data=snapshot.docs[0].data();--}}
-
-{{--                    if(commisionModel||subscriptionModel) {--}}
-{{--                        if(data.hasOwnProperty('subscriptionPlanId')&&data.subscriptionPlanId!=null) {--}}
-{{--                            var isSubscribed=true;--}}
-{{--                        } else {--}}
-{{--                            var isSubscribed=false;--}}
-{{--                        }--}}
-{{--                    } else {--}}
-{{--                        var isSubscribed='';--}}
-{{--                    }--}}
-{{--                    var url="{{ route('setSubcriptionFlag') }}";--}}
-{{--                    $.ajax({--}}
-
-{{--                        type: 'POST',--}}
-
-{{--                        url: url,--}}
-
-{{--                        data: {--}}
-
-{{--                            email: "{{Auth::user()->email}}",--}}
-{{--                            isSubscribed: isSubscribed--}}
-{{--                        },--}}
-{{--                        headers: {--}}
-{{--                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')--}}
-{{--                        },--}}
-
-{{--                        success: function(data) {--}}
-{{--                            if(data.access) {--}}
-
-{{--                            }--}}
-{{--                        }--}}
-
-{{--                    })--}}
-
-{{--                })--}}
-
-
 {{--        </script>--}}
 
         <!-- Cache-based Impersonation Script -->
