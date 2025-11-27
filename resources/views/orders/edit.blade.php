@@ -59,14 +59,14 @@
                                                 </label>
                                         </div>
 
-                                            @if($details['schedule_time'])
+{{--                                            @if($details['schedule_time'])--}}
                                         <div class="form-group row widt-100 gendetail-col schedule_date">
                                                     <label class="col-12 control-label">
                                                         <strong>{{ trans('lang.schedule_date_time') }}: </strong>
-                                                        <span>{{ $details['schedule_time'] }}</span>
+                                                        <span>{{ $details['created_at'] }}</span>
                                                     </label>
                                         </div>
-                                            @endif
+{{--                                            @endif--}}
 
                                             @if($details['estimated_time'])
                                         <div class="form-group row widt-100 gendetail-col prepare_time">

@@ -2,6 +2,7 @@
 
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\OrderController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\RestaurantProfileController;
 use App\Http\Controllers\Auth\SignupController;
@@ -272,6 +273,7 @@ Route::prefix('admin')->group(function () {
     Route::post('/impersonate/validate-token', [App\Http\Controllers\AdminImpersonationController::class, 'validateImpersonationToken'])->name('admin.impersonate.validate');
     Route::get('/impersonate/stats', [App\Http\Controllers\AdminImpersonationController::class, 'getImpersonationStats'])->name('admin.impersonate.stats');
 });
-//Route::get('/login/impersonate', [App\Http\Controllers\Auth\LoginController::class, 'impersonateLogin']);
 
-
+Route::get('/orders/latest-id/vendor/{vendorID}', [OrderController::class, 'getLatestOrderForVendor']);
+Route::get('/orders/get/{id}', [OrderController::class, 'getOrder']);
+Route::get('/settings/ringtone', [OrderController::class, 'getRingtone']);

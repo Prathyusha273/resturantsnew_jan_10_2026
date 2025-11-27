@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Google\Client as Google_Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class OrderController extends Controller
@@ -357,7 +358,12 @@ class OrderController extends Controller
     protected function formatDate($value): string
     {
         $date = $this->parseDate($value);
-        return $date ? $date->format('d M Y h:i A') : '—';
+
+        if (!$date) {
+            return '—';
+        }
+
+        return $date->timezone('Asia/Kolkata')->format('d M Y h:i A');
     }
 
 
@@ -590,11 +596,11 @@ class OrderController extends Controller
                 break;
             case 'cod':
                 $image = asset('images/cashondelivery.png');
-                $label = 'CASH ON DELIVERY';
+//                $label = 'CASH ON DELIVERY';
                 break;
             case 'razorpay':
-                $image = asset('images/razorepay.png');
-                $label = 'Razorpay';
+                $image = asset('images/razorpay.png');
+//                $label = 'Razorpay';
                 break;
             case 'paypal':
                 $image = asset('images/paypal.png');
@@ -760,6 +766,48 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             return [];
         }
+    }
+    public function getLatestOrderForVendor($vendorID)
+    {
+        $last = DB::table('restaurant_orders')
+            ->where('vendorID', $vendorID)
+            ->orderByRaw('CAST(SUBSTRING(id, 6) AS UNSIGNED) DESC')
+            ->select('id', 'scheduleTime', 'status')
+            ->first();
+
+        return response()->json(['latest_id' => $last->id ?? '']);
+    }
+
+    public function getOrder($id)
+    {
+        $order = DB::table('restaurant_orders')->where('id', $id)->first();
+        if (!$order) return response()->json([]);
+
+        // Merge JSON values
+        $order->author = json_decode($order->author, true);
+
+        // Fetch vendor details properly
+        $vendor = DB::table('vendors')
+            ->where('id', $order->vendorID)
+            ->select('id', 'title', 'photo', 'vType', 'phonenumber', 'location')
+            ->first();
+
+        $order->vendor_title = $vendor->title ?? null;
+        $order->vendor_photo = $vendor->photo ?? null;
+
+        return response()->json($order);
+    }
+    public function getRingtone() {
+        $row = DB::table('settings') ->where('document_name', 'globalSettings') ->first();
+        if (!$row) {
+            return response()->json(['ringtone' => null]);
+        }
+        $fields = json_decode($row->fields, true);
+
+        return response()->json([
+            'ringtone' => $fields['order_ringtone_url'] ?? null,
+            'status' => 'OK',
+            'route_debug' => request()->route(), ]);
     }
 }
 
