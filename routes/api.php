@@ -21,4 +21,3 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 Route::post('/delete-user', [App\Http\Controllers\ApiController::class, 'deleteUserFromDb'])->name('deleteUserFromDb');
 Route::post('/send-forgot-password-alert', [AlertController::class, 'forgotPasswordAlert']);
-;

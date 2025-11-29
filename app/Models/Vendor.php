@@ -57,6 +57,7 @@ class Vendor extends Model
         'reststatus',
         'dine_in_active',
         'vType',
+        'createdAt',
     ];
 
     protected $casts = [

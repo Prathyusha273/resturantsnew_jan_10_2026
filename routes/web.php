@@ -121,12 +121,18 @@ Route::prefix('api/security')->middleware(['throttle:60,1'])->group(function () 
 //Auth::routes();
 Auth::routes(['verify' => false]);
 // Enhanced authentication routes with rate limiting
-//Route::post('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordApiController::class, 'sendResetLink']);
-Route::get('forgot-password', [App\Http\Controllers\Auth\LoginController::class, 'forgotPassword'])->name('forgot-password');
-Route::post('/forgot-password', [App\Http\Controllers\Auth\LoginController::class, 'sendResetLink']);
-Route::post('password/email', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])
-    ->middleware('throttle.login:3,1')
-    ->name('password.email');
+
+
+// Show send link page
+Route::get('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'showLinkRequestForm'])
+    ->name('forgot-password');
+
+//// Send reset link
+//Route::post('forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail']);
+//
+//Route::post('password/email', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])
+//    ->middleware('throttle.login:3,1')
+//    ->name('password.email');
 Route::get('password/reset/{token}', [App\Http\Controllers\Auth\ResetPasswordController::class, 'showResetForm'])->name('password.reset');
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])
     ->middleware('throttle.login:3,1')
@@ -197,6 +203,8 @@ Route::middleware(['check.subscription'])->group(function () {
     Route::get('/restaurant', [RestaurantProfileController::class, 'show'])->name('restaurant');
     Route::post('/restaurant', [RestaurantProfileController::class, 'update'])->name('restaurant.update');
 
+    Route::patch('/foods/{id}/publish', [App\Http\Controllers\FoodController::class, 'togglePublish'])->name('foods.publish');
+    Route::patch('/foods/{id}/availability', [App\Http\Controllers\FoodController::class, 'toggleAvailability'])->name('foods.availability');
     Route::get('/foods', [App\Http\Controllers\FoodController::class, 'index'])->name('foods');
     Route::get('/foods/create', [App\Http\Controllers\FoodController::class, 'create'])->name('foods.create');
     Route::post('/foods', [App\Http\Controllers\FoodController::class, 'store'])->name('foods.store');
@@ -204,8 +212,7 @@ Route::middleware(['check.subscription'])->group(function () {
     Route::put('/foods/{id}', [App\Http\Controllers\FoodController::class, 'update'])->name('foods.update');
     Route::delete('/foods/{id}', [App\Http\Controllers\FoodController::class, 'destroy'])->name('foods.destroy');
     Route::delete('/foods/', [App\Http\Controllers\FoodController::class, 'bulkDestroy'])->name('foods.bulkDestroy');
-    Route::patch('/foods/{id}/publish', [App\Http\Controllers\FoodController::class, 'togglePublish'])->name('foods.publish');
-    Route::patch('/foods/{id}/availability', [App\Http\Controllers\FoodController::class, 'toggleAvailability'])->name('foods.availability');
+
 
     Route::get('/orders', [App\Http\Controllers\OrderController::class, 'index'])->name('orders');
     Route::get('/orders/data', [App\Http\Controllers\OrderController::class, 'data'])->name('orders.data');

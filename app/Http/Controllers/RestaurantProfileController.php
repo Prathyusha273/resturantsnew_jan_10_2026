@@ -95,6 +95,11 @@ class RestaurantProfileController extends Controller
                 'cuisineID' => $request->input('cuisine_id'),
             ];
 
+            // 👇 Auto-generate createdAt only once
+            if (blank($vendor->createdAt)) {
+                $payload['createdAt'] = now('Asia/Kolkata')->format('M j, Y g:i A');
+            }
+
             // Category and cuisine titles...
             if ($request->filled('category_ids')) {
                 $payload['categoryTitle'] = VendorCategory::whereIn('id', $request->category_ids)
@@ -195,6 +200,7 @@ class RestaurantProfileController extends Controller
             'author' => $user->firebase_id ?? $user->_id ?? (string) $user->id,
             'title' => $user->name ?? '',
             'phonenumber' => $user->phoneNumber ?? null,
+            'createdAt' => now('Asia/Kolkata')->format('M j, Y g:i A'),
         ]);
 
         if (empty($user->vendorID)) {

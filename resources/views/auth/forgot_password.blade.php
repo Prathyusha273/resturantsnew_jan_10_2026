@@ -185,20 +185,20 @@
     {{--        }--}}
     {{--    });--}}
 
-    {{--    $.ajax({--}}
-    {{--        url: "{{ url('/api/send-forgot-password-alert') }}",--}}
-    {{--        method: "POST",--}}
-    {{--        data: {--}}
-    {{--            email: email,--}}
-    {{--        },--}}
-    {{--        success: function (res) {--}}
-    {{--            console.log('Alert sent to admin', res);--}}
-    {{--        },--}}
-    {{--        error: function (xhr) {--}}
-    {{--            console.error('Failed to send admin alert', xhr.responseText || xhr.statusText);--}}
-    {{--        }--}}
-    {{--    });--}}
-    {{--}--}}
+{{--        $.ajax({--}}
+{{--            url: "{{ url('/api/send-forgot-password-alert') }}",--}}
+{{--            method: "POST",--}}
+{{--            data: {--}}
+{{--                email: email,--}}
+{{--            },--}}
+{{--            success: function (res) {--}}
+{{--                console.log('Alert sent to admin', res);--}}
+{{--            },--}}
+{{--            error: function (xhr) {--}}
+{{--                console.error('Failed to send admin alert', xhr.responseText || xhr.statusText);--}}
+{{--            }--}}
+{{--        });--}}
+{{--    }--}}
     {{--function resetButtonState() {--}}
     {{--    $('#btn_spinner').hide();--}}
     {{--    $('#btn_text').show();--}}

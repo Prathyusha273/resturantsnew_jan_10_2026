@@ -87,13 +87,10 @@
             </div>
         </div>
 
-                <form id="bulk-delete-form" method="POST" action="{{ route('foods.bulkDestroy') }}">
-                    @csrf
-                    @method('DELETE')
-                            <div class="table-responsive m-t-10">
+                <div class="table-responsive m-t-10">
                     <table class="display nowrap table table-hover table-striped table-bordered" id="foods-table" cellspacing="0" width="100%">
-                                    <thead>
-                                    <tr>
+                        <thead>
+                            <tr>
                                 <th class="delete-all" style="width:55px;">
                                     <input type="checkbox" id="select-all">
                                     <label class="col-3 control-label mb-0" for="select-all">
@@ -101,7 +98,7 @@
                                             <i class="fa fa-trash"></i> All
                                         </a>
                                     </label>
-                                        </th>
+                                </th>
                                 <th>Image</th>
                                 <th>Food</th>
                                 <th>Category</th>
@@ -111,8 +108,8 @@
                                 <th>Available</th>
                                 <th>Updated</th>
                                 <th class="text-right">Actions</th>
-                                    </tr>
-                                    </thead>
+                            </tr>
+                        </thead>
                         <tbody>
                             @forelse ($foods as $food)
                                 @php
@@ -155,7 +152,7 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <form method="POST" action="{{ route('foods.publish', $food->id) }}">
+                                        <form method="POST" action="{{ route('foods.publish', $food->id) }}" class="d-inline publish-form">
                                             @csrf
                                             @method('PATCH')
                                             <input type="hidden" name="publish" value="{{ $food->publish ? 0 : 1 }}">
@@ -165,7 +162,7 @@
                                         </form>
                                     </td>
                                     <td>
-                                        <form method="POST" action="{{ route('foods.availability', $food->id) }}">
+                                        <form method="POST" action="{{ route('foods.availability', $food->id) }}" class="d-inline availability-form">
                                             @csrf
                                             @method('PATCH')
                                             <input type="hidden" name="isAvailable" value="{{ $food->isAvailable ? 0 : 1 }}">
@@ -195,9 +192,14 @@
 {{--                                    </td>--}}
 {{--                                </tr>--}}
                             @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
+                        </tbody>
+                    </table>
+                </div>
+
+                <form id="bulk-delete-form" method="POST" action="{{ route('foods.bulkDestroy') }}" style="display: none;">
+                    @csrf
+                    @method('DELETE')
+                    <div id="bulk-delete-inputs"></div>
                 </form>
 
         </div>
