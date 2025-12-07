@@ -158,7 +158,8 @@
                             </div>
 
                             <div class="row">
-                                <div class="col-md-12">
+                                <!-- Categories -->
+                                <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="category_search">{{ trans('lang.restaurant_categories') }}</label>
                                         <input type="text"
@@ -176,14 +177,37 @@
                                                 </option>
                                             @endforeach
                                         </select>
-                                        <small
-                                            class="form-text text-muted">{{ trans('lang.restaurant_categories_help') }}</small>
+                                        <small class="form-text text-muted">{{ trans('lang.restaurant_categories_help') }}</small>
                                         @error('category_ids')
                                         <small class="text-danger">{{ $message }}</small>
                                         @enderror
                                     </div>
                                 </div>
+                                <!-- Vendor Type -->
+                                <div class="col-md-6">
+                                    <div class="form-group row">
+                                        <label class="col-4 control-label">
+                                            Vendor Type <span class="required-field"></span>
+                                        </label>
+                                        <div class="col-8">
+                                            <select id="vendor_type"
+                                                    name="vendor_type"
+                                                    class="form-control"
+                                                    required>
+                                                <option value="restaurant"
+                                                    {{ old('vendor_type', $vendorData->vType ?? 'restaurant') === 'restaurant' ? 'selected' : '' }}>
+                                                    Restaurant (Default)
+                                                </option>
+                                                <option value="mart"
+                                                    {{ old('vendor_type', $vendorData->vType ?? 'restaurant') === 'mart' ? 'selected' : '' }}>
+                                                    Mart
+                                                </option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
 
                             <div class="row">
                                 <div class="col-md-6">

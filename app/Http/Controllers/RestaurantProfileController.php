@@ -81,6 +81,7 @@ class RestaurantProfileController extends Controller
                 'restaurant_slug' => $request->input('restaurant_slug'),
                 'zone_slug' => $request->input('zone_slug'),
                 'zoneId' => $request->input('zone_id'),
+                'vType' => $request->input('vendor_type'),
                 'phonenumber' => $request->input('phone'),
                 'description' => $request->input('description'),
                 'latitude' => $request->input('latitude'),
@@ -120,6 +121,10 @@ class RestaurantProfileController extends Controller
                     'fix_commission' => $request->input('admin_commission'),
                     'isEnabled' => true,
                 ];
+            }
+
+            if ($request->filled('vendor_type')) {
+                $payload['vType'] = $request->vendor_type === 'restaurant' ? 'Restaurant' : 'Mart';
             }
 
             // ------------------ Restaurant Main Photo ------------------
