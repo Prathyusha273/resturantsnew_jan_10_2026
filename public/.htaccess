@@ -19,6 +19,15 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
+    # Handle storage requests (alternative to symlink for shared hosting)
+    # Route /storage/* requests to storage/index.php before Laravel routing
+    # Works with both Apache and LiteSpeed
+    # Handles both /storage/ and /resto/storage/ patterns
+    RewriteCond %{REQUEST_URI} (^|/)(resto/)?storage/(.+)$
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*/)?storage/(.+)$ storage/index.php?file=$2 [L,QSA]
+    
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f

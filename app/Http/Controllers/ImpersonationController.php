@@ -239,18 +239,41 @@ class ImpersonationController extends Controller
                 'created_at' => time()
             ];
             
-            \Illuminate\Support\Facades\Cache::put($impersonationKey, $impersonationData, 300);
+            // Store test data in cache
+            $stored = \Illuminate\Support\Facades\Cache::put($impersonationKey, $impersonationData, 300);
+            
+            // Verify the data was stored
+            $verification = \Illuminate\Support\Facades\Cache::get($impersonationKey);
+            
+            if (!$stored || !$verification) {
+                Log::error('Debug: Failed to store impersonation data in cache', [
+                    'impersonation_key' => $impersonationKey,
+                    'cache_driver' => config('cache.default'),
+                    'stored' => $stored,
+                    'verification' => $verification
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to store data in cache. Cache driver: ' . config('cache.default'),
+                    'cache_driver' => config('cache.default')
+                ], 500);
+            }
             
             Log::info('Debug: Stored test impersonation data', [
                 'impersonation_key' => $impersonationKey,
                 'restaurant_uid' => $restaurantUid,
-                'restaurant_name' => $restaurantName
+                'restaurant_name' => $restaurantName,
+                'cache_driver' => config('cache.default'),
+                'verified' => true
             ]);
             
             return response()->json([
                 'success' => true,
                 'message' => 'Test impersonation data stored successfully',
-                'data' => $impersonationData
+                'data' => $impersonationData,
+                'cache_driver' => config('cache.default'),
+                'verified' => true
             ]);
             
         } catch (\Exception $e) {

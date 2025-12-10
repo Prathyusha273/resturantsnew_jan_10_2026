@@ -11,6 +11,7 @@ use App\Models\Vendor;
 use App\Models\VendorCategory;
 use App\Models\VendorCuisine;
 use App\Models\Zone;
+use App\Services\FirebaseStorageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ use Illuminate\View\View;
 class RestaurantProfileController extends Controller
 {
     protected ?array $currencyMeta = null;
+    protected FirebaseStorageService $firebaseStorage;
 
     protected const FILTER_OPTIONS = [
         'Free Wi-Fi' => 'lang.free_wi_fi',
@@ -33,9 +35,10 @@ class RestaurantProfileController extends Controller
         'Vegetarian Friendly' => 'lang.vegetarian_friendly',
     ];
 
-    public function __construct()
+    public function __construct(FirebaseStorageService $firebaseStorage)
     {
         $this->middleware('auth');
+        $this->firebaseStorage = $firebaseStorage;
     }
 
     public function show(): View
@@ -138,9 +141,11 @@ class RestaurantProfileController extends Controller
                 // delete old
                 $this->deleteFileIfLocal($vendor->photo ?? null);
 
-                // save new
-                $path = $request->file('photo')->store('restaurants', 'public');
-                $payload['photo'] = asset('storage/' . $path);
+                // save new to Firebase Storage
+                $payload['photo'] = $this->firebaseStorage->uploadFile(
+                    $request->file('photo'),
+                    'restaurants/photo_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
+                );
             }
 
             // ------------------ Gallery ------------------
@@ -157,8 +162,10 @@ class RestaurantProfileController extends Controller
 
             if ($request->hasFile('gallery')) {
                 foreach ($request->file('gallery') as $file) {
-                    $path = $file->store('restaurants/gallery', 'public');
-                    $gallery[] = asset('storage/' . $path);
+                    $gallery[] = $this->firebaseStorage->uploadFile(
+                        $file,
+                        'restaurants/gallery/gallery_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension()
+                    );
                 }
             }
 
@@ -179,8 +186,10 @@ class RestaurantProfileController extends Controller
 
     protected function storeImage($file, string $path): string
     {
-        $stored = $file->store('restaurants');
-        return Storage::disk('public')->url($stored);
+        return $this->firebaseStorage->uploadFile(
+            $file,
+            $path . '/' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension()
+        );
     }
 
     protected function findVendorForUser(User $user): ?Vendor
@@ -307,6 +316,13 @@ class RestaurantProfileController extends Controller
             return;
         }
 
+        // Check if it's a Firebase Storage URL
+        if (strpos($url, 'firebasestorage.googleapis.com') !== false) {
+            $this->firebaseStorage->deleteFile($url);
+            return;
+        }
+
+        // Fallback to local storage deletion for backward compatibility
         $path = parse_url($url, PHP_URL_PATH);
         if (!$path) {
             return;
@@ -324,9 +340,10 @@ class RestaurantProfileController extends Controller
 
     protected function storeVideo($file, string $path): string
     {
-        $stored = $file->store($path, 'public');
-
-        return Storage::disk('public')->url($stored);
+        return $this->firebaseStorage->uploadFile(
+            $file,
+            $path . '/' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension()
+        );
     }
 
     protected function storeStoryMedia(Vendor $vendor, UpdateRestaurantRequest $request): void

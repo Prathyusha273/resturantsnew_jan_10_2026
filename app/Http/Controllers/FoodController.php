@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Models\Vendor;
 use App\Models\VendorCategory;
 use App\Models\VendorProduct;
+use App\Services\FirebaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -16,9 +17,12 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class FoodController extends Controller
 {
-    public function __construct()
+    protected FirebaseStorageService $firebaseStorage;
+
+    public function __construct(FirebaseStorageService $firebaseStorage)
     {
         $this->middleware('auth');
+        $this->firebaseStorage = $firebaseStorage;
     }
 
     public function index(Request $request)
@@ -412,14 +416,26 @@ class FoodController extends Controller
     protected function determineMainPhoto(Request $request, ?string $current): ?string
     {
         if ($request->boolean('remove_photo')) {
+            // Delete old photo from Firebase Storage if it exists
+            if ($current) {
+                $this->deleteFileIfFirebase($current);
+            }
             $current = null;
         }
 
         if ($request->hasFile('photo_upload')) {
+            // Delete old photo from Firebase Storage if it exists
+            if ($current) {
+                $this->deleteFileIfFirebase($current);
+            }
             return $this->storeImage($request->file('photo_upload'));
         }
 
         if ($url = $request->input('photo_url')) {
+            // Delete old photo from Firebase Storage if it exists
+            if ($current) {
+                $this->deleteFileIfFirebase($current);
+            }
             return $url;
         }
 
@@ -430,6 +446,13 @@ class FoodController extends Controller
     {
         $existing = $this->decodeJsonField($food->photos);
         $keep = $request->input('keep_photos', []);
+
+        // Delete removed photos from Firebase Storage
+        foreach ($existing as $photo) {
+            if (!in_array($photo, (array) $keep)) {
+                $this->deleteFileIfFirebase($photo);
+            }
+        }
 
         $gallery = array_values(array_filter($existing, function ($photo) use ($keep) {
             return in_array($photo, (array) $keep);
@@ -551,9 +574,11 @@ class FoodController extends Controller
 
     protected function storeImage(UploadedFile $file): string
     {
-        $path = $file->store('vendor_products', 'public');
-
-        return Storage::url($path);
+        // Upload to Firebase Storage
+        return $this->firebaseStorage->uploadFile(
+            $file,
+            'vendor_products/product_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension()
+        );
     }
 
     protected function currentVendor(): Vendor
@@ -582,6 +607,40 @@ class FoodController extends Controller
         $url = $fields['image'] ?? null;
 
         return $url ?: asset('assets/images/placeholder.png');
+    }
+
+    /**
+     * Delete file from Firebase Storage if it's a Firebase Storage URL
+     *
+     * @param string|null $url
+     * @return void
+     */
+    protected function deleteFileIfFirebase(?string $url): void
+    {
+        if (empty($url)) {
+            return;
+        }
+
+        // Check if it's a Firebase Storage URL
+        if (strpos($url, 'firebasestorage.googleapis.com') !== false) {
+            $this->firebaseStorage->deleteFile($url);
+            return;
+        }
+
+        // Fallback to local storage deletion for backward compatibility
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!$path) {
+            return;
+        }
+
+        $relative = ltrim(str_replace('/storage/', '', $path), '/');
+        if (empty($relative)) {
+            return;
+        }
+
+        if (Storage::disk('public')->exists($relative)) {
+            Storage::disk('public')->delete($relative);
+        }
     }
 }
 

@@ -9,18 +9,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\FirebaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use App\Models\VendorUsers;
 
 
 class UserController extends Controller
 {
+    protected FirebaseStorageService $firebaseStorage;
 
-	public function __construct()
-
+	public function __construct(FirebaseStorageService $firebaseStorage)
     {
         $this->middleware('auth');
+        $this->firebaseStorage = $firebaseStorage;
     }
 
 
@@ -61,10 +64,18 @@ class UserController extends Controller
         $user->lastName    = $request->last_name;
         $user->phoneNumber = $request->phone;
 
-        // ----------- 🔥 IMAGE UPLOAD (Laravel Storage) -----------
+        // ----------- 🔥 IMAGE UPLOAD (Firebase Storage) -----------
         if ($request->hasFile('photo')) {
-            $path = $request->file('photo')->store('users/profile', 'public');
-            $user->profilePictureURL = asset('storage/' . $path);
+            // Delete old photo from Firebase Storage if it exists
+            if ($user->profilePictureURL) {
+                $this->deleteFileIfFirebase($user->profilePictureURL);
+            }
+            
+            // Upload new photo to Firebase Storage
+            $user->profilePictureURL = $this->firebaseStorage->uploadFile(
+                $request->file('photo'),
+                'users/profile/profile_' . time() . '_' . uniqid() . '.' . $request->file('photo')->getClientOriginalExtension()
+            );
         }
 
         // ----------- 🔥 BANK DETAILS (JSON stored in DB) -----------
@@ -108,5 +119,39 @@ class UserController extends Controller
 
       return view('restaurant.myrestaurant')->with('id', $id);
   }
+
+    /**
+     * Delete file from Firebase Storage if it's a Firebase Storage URL
+     *
+     * @param string|null $url
+     * @return void
+     */
+    protected function deleteFileIfFirebase(?string $url): void
+    {
+        if (empty($url)) {
+            return;
+        }
+
+        // Check if it's a Firebase Storage URL
+        if (strpos($url, 'firebasestorage.googleapis.com') !== false) {
+            $this->firebaseStorage->deleteFile($url);
+            return;
+        }
+
+        // Fallback to local storage deletion for backward compatibility
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!$path) {
+            return;
+        }
+
+        $relative = ltrim(str_replace('/storage/', '', $path), '/');
+        if (empty($relative)) {
+            return;
+        }
+
+        if (Storage::disk('public')->exists($relative)) {
+            Storage::disk('public')->delete($relative);
+        }
+    }
 
 }
