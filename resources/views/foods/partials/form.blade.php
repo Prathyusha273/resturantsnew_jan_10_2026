@@ -106,7 +106,7 @@
 
                 <!-- Multi-select -->
                 <select id="food_category"
-                        name="food_category[]"
+                        name="categoryID"
                         class="form-control"
                         multiple
                         required>
