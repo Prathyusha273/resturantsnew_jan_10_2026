@@ -360,9 +360,11 @@
                                 <div class="col-md-4 text-center">
                                     <img src="{{ $vendorData->photo ?? $placeholderImageUrl }}"
                                          alt="{{ trans('lang.restaurant_image') }}"
-                                         class="img-fluid rounded border mb-3"
+                                         class="rounded border mb-3"
+{{--                                         class="img-fluid rounded border mb-3"--}}
                                          id="restaurant-photo-preview"
-                                         data-placeholder="{{ $placeholderImageUrl }}">
+                                         width="150px" height="150px"
+                                         data-placeholder="{{ $placeholderImageUrl }}" >
                                     {{--<div class="d-flex justify-content-center gap-2">--}}
 {{--                                        <button type="button" class="btn btn-outline-danger btn-sm"--}}
 {{--                                                id="remove-photo-btn">--}}
@@ -566,56 +568,6 @@
                         </fieldset>
 
                         <fieldset class="mb-4 border border 4px solid p-4">
-                            <button class="btn btn-primary mb-3">{{ __('Story') }}</button>
-                            <p class="text-danger mb-4">{{ __('NOTE : Please Click on Save Button After Making Changes in Image Or Video, Otherwise Data may not Save!!') }}</p>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label class="d-block">{{ __('Choose humbling GIF/Image') }}</label>
-                                        <input type="file"
-                                               name="story_thumbnail"
-                                               accept="image/*"
-                                               class="form-control-file @error('story_thumbnail') is-invalid @enderror">
-                                        @error('story_thumbnail')
-                                        <small class="text-danger d-block mt-1">{{ $message }}</small>
-                                        @enderror
-                                        @if(!empty($story?->video_thumbnail))
-                                            <div class="mt-3">
-                                                <img src="{{ $story->video_thumbnail }}"
-                                                     alt="{{ __('Story thumbnail') }}"
-                                                     class="img-fluid rounded border"
-                                                     style="max-height: 200px;">
-                                            </div>
-                                        @endif
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label class="d-block">{{ __('Select Story Video') }}</label>
-                                        <input type="file"
-                                               name="story_video"
-                                               accept="video/*"
-                                               class="form-control-file @error('story_video') is-invalid @enderror">
-                                        @error('story_video')
-                                        <small class="text-danger d-block mt-1">{{ $message }}</small>
-                                        @enderror
-                                        @php
-                                            $existingVideo = is_array($story?->video_url ?? null) ? ($story->video_url[0] ?? null) : null;
-                                        @endphp
-                                        @if($existingVideo)
-                                            <div class="mt-3">
-                                                <video controls width="100%" style="max-height:240px;">
-                                                    <source src="{{ $existingVideo }}" type="video/mp4">
-                                                    {{ __('Your browser does not support the video tag.') }}
-                                                </video>
-                                            </div>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        </fieldset>
-
-                        <fieldset class="mb-4 border border 4px solid p-4">
                             <button
                                 class="btn btn-primary mb-3">{{ trans('lang.dine_in_future_setting') }}</button>
                             <div class="form-check mb-3">
@@ -706,6 +658,55 @@
                             </div>
                         </fieldset>
 
+                        <fieldset class="mt-4 border border 4px solid p-4">
+                            <button class="btn btn-primary mb-3">{{ __('Story') }}</button>
+                            <p class="text-danger mb-4">{{ __('NOTE : Please Click on Save Button After Making Changes in Image Or Video, Otherwise Data may not Save!!') }}</p>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="d-block">{{ __('Choose humbling GIF/Image') }}</label>
+                                        <input type="file"
+                                               name="story_thumbnail"
+                                               accept="image/*"
+                                               class="form-control-file @error('story_thumbnail') is-invalid @enderror">
+                                        @error('story_thumbnail')
+                                        <small class="text-danger d-block mt-1">{{ $message }}</small>
+                                        @enderror
+                                        @if(!empty($story?->video_thumbnail))
+                                            <div class="mt-3">
+                                                <img src="{{ $story->video_thumbnail }}"
+                                                     alt="{{ __('Story thumbnail') }}"
+                                                     class="img-fluid rounded border"
+                                                     style="max-height: 200px;">
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="d-block">{{ __('Select Story Video') }}</label>
+                                        <input type="file"
+                                               name="story_video"
+                                               accept="video/*"
+                                               class="form-control-file @error('story_video') is-invalid @enderror">
+                                        @error('story_video')
+                                        <small class="text-danger d-block mt-1">{{ $message }}</small>
+                                        @enderror
+                                        @php
+                                            $existingVideo = is_array($story?->video_url ?? null) ? ($story->video_url[0] ?? null) : null;
+                                        @endphp
+                                        @if($existingVideo)
+                                            <div class="mt-3">
+                                                <video controls width="100%" style="max-height:240px;">
+                                                    <source src="{{ $existingVideo }}" type="video/mp4">
+                                                    {{ __('Your browser does not support the video tag.') }}
+                                                </video>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
                         <div class="text-center mt-4">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fa fa-save"></i> {{ trans('lang.save') }}

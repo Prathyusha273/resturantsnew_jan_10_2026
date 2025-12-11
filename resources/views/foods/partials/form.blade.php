@@ -88,20 +88,42 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="form-group">
-            <label class="control-label font-weight-bold">Category <span class="text-danger">*</span></label>
-            <select name="categoryID" class="form-control" required>
-                <option value="">Select category</option>
-                @foreach ($categories as $category)
-                    <option value="{{ $category->id }}" {{ $selectedCategory === $category->id ? 'selected' : '' }}>
-                        {{ $category->title }}
-                    </option>
-                @endforeach
-            </select>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label class="control-label font-weight-bold">
+                    {{ trans('lang.food_category_id') }} <span class="text-danger">*</span>
+                </label>
+
+                <!-- Selected categories display -->
+                <div id="selected_categories" class="mb-2"></div>
+
+                <!-- Search box -->
+                <input type="text"
+                       id="food_category_search"
+                       class="form-control mb-2"
+                       placeholder="Search categories...">
+
+                <!-- Multi-select -->
+                <select id="food_category"
+                        name="food_category[]"
+                        class="form-control"
+                        multiple
+                        required>
+                    <option value="">Select categories</option>
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->id }}" {{ $selectedCategory === $category->id ? 'selected' : '' }}>
+                            {{ $category->title }}
+                        </option>
+                    @endforeach
+                </select>
+                <small class="form-text text-muted">
+                    {{ trans('lang.food_category_id_help') }}
+                </small>
+            </div>
         </div>
     </div>
+
     <div class="col-md-3">
         <div class="form-group">
             <label class="control-label font-weight-bold">Quantity</label>
@@ -129,14 +151,16 @@
 </div>
 
 <div class="form-group">
+    <div class="col-md-6">
     <label class="control-label font-weight-bold">Description <span class="text-danger">*</span></label>
     <textarea name="description" rows="4" class="form-control" required>{{ old('description', $food->description ?? '') }}</textarea>
+    </div>
 </div>
 
 <div class="row">
     <div class="col-md-6">
         <div class="form-group">
-            <label class="control-label font-weight-bold">Main Photo Upload</label>
+            <label class="control-label font-weight-bold">Image</label>
             <input type="file" name="photo_upload" class="form-control-file">
             <small class="form-text text-muted">Recommended size 800x600px.</small>
         </div>
@@ -151,7 +175,7 @@
 </div>
 
 <div class="mb-3">
-    <label class="control-label font-weight-bold d-block">Current Main Photo</label>
+    <label class="control-label font-weight-bold d-block">Current Image</label>
     <img src="{{ $existingPhoto ?: $placeholderImage }}" alt="Current photo" class="rounded shadow" style="width: 160px; height: 120px; object-fit: cover;">
     @if ($editing && $existingPhoto)
         <div class="form-check mt-2">
@@ -182,7 +206,7 @@
     </div>
 @endif
 
-<div class="row">
+<div class="row" style="display: none">
     <div class="col-md-6">
         <div class="form-group">
             <label class="control-label font-weight-bold">Gallery Uploads</label>
@@ -199,9 +223,9 @@
 </div>
 
 <hr>
-<div class="mb-3">
+<div class="mt-4 border border 4px solid p-4">
     <div class="d-flex justify-content-between align-items-center">
-        <label class="control-label font-weight-bold mb-0">Add-ons</label>
+        <label class="btn btn-primary mb-3">Add-ons</label>
         <button type="button" class="btn btn-sm btn-outline-primary" data-addons-add>Add new</button>
     </div>
     <small class="form-text text-muted mb-2">Define optional add-ons for this food item.</small>
@@ -225,9 +249,9 @@
 </div>
 
 <hr>
-<div class="mb-3">
+<div class="mt-4 border border 4px solid p-4">
     <div class="d-flex justify-content-between align-items-center">
-        <label class="control-label font-weight-bold mb-0">Product Specifications</label>
+        <label class="btn btn-primary mb-3">Product Specifications</label>
         <button type="button" class="btn btn-sm btn-outline-primary" data-specs-add>Add new</button>
     </div>
     <small class="form-text text-muted mb-2">Use specifications to highlight key product details (e.g., spicy level, calories).</small>

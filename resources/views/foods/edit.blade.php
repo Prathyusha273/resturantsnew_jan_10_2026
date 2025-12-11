@@ -18,7 +18,7 @@
     <div class="container-fluid">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">Update {{ $food->name }}</h4>
+                <h4 class="btn btn-primary mb-3">Food Details</h4>
                 <a href="{{ route('foods') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="fa fa-arrow-left mr-1"></i> Back to list
                 </a>
