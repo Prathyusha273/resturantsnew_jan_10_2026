@@ -152,6 +152,34 @@ class RestaurantProfileController extends Controller
             $gallery = $vendor->photos ?? [];
             $removeGallery = $request->input('remove_gallery', []);
 
+            // ------------------ Working Hours ------------------
+            $workingHoursInput = $request->input('working_hours', []);
+
+            $dbWorkingHours = [];
+
+            foreach ($workingHoursInput as $day => $slots) {
+                $cleanSlots = [];
+
+                foreach ($slots as $slot) {
+                    if (!empty($slot['from']) && !empty($slot['to'])) {
+                        $cleanSlots[] = [
+                            'from' => $slot['from'],
+                            'to'   => $slot['to'],
+                        ];
+                    }
+                }
+
+                if (!empty($cleanSlots)) {
+                    $dbWorkingHours[] = [
+                        'day'      => $day,
+                        'timeslot' => array_values($cleanSlots),
+                    ];
+                }
+            }
+
+            $payload['workingHours'] = $dbWorkingHours;
+
+
             if (!empty($removeGallery)) {
                 foreach ($removeGallery as $photo) {
                     $this->deleteFileIfLocal($photo);

@@ -34,9 +34,39 @@
             'Saturday' => trans('lang.Saturday'),
         ];
         $specialOfferDays = $daysOfWeek;
-        $workingHours = collect($vendorData->workingHours ?? [])
-            ->mapWithKeys(fn ($item) => [$item['day'] => $item['timeslot'] ?? []])
-            ->all();
+//        $workingHours = collect($vendorData->workingHours ?? [])
+//            ->mapWithKeys(fn ($item) => [$item['day'] => $item['timeslot'] ?? []])
+//            ->all();
+//$workingHours = old(
+//    'working_hours',
+//    collect($vendorData->workingHours ?? [])
+//        ->mapWithKeys(function ($item) {
+//            return [
+//                $item['day'] => array_values($item['timeslot'] ?? [])
+//            ];
+//        })
+//        ->all()
+//);
+          $rawWorkingHours = $vendorData->workingHours ?? null;
+
+// Decode JSON safely (because column is TEXT)
+if (is_string($rawWorkingHours)) {
+    $rawWorkingHours = json_decode($rawWorkingHours, true);
+}
+
+// Normalize for UI
+$workingHours = old(
+    'working_hours',
+    collect($rawWorkingHours ?? [])
+        ->filter(fn ($item) => is_array($item) && isset($item['day']))
+        ->mapWithKeys(function ($item) {
+            return [
+                $item['day'] => array_values($item['timeslot'] ?? [])
+            ];
+        })
+        ->all()
+);
+
         $specialDiscountOld = old('special_discount');
         if (is_array($specialDiscountOld)) {
             $specialDiscountData = [];
