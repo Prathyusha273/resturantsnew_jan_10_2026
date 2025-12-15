@@ -404,7 +404,18 @@ class FoodController extends Controller
         $specifications = $this->prepareSpecifications($request);
         $food->product_specification = !empty($specifications) ? json_encode($specifications) : null;
 
-        $mainPhoto = $this->determineMainPhoto($request, $food->photo);
+        // Ensure photo is a string (handle potential array from database)
+        $currentPhoto = $food->photo;
+        if (is_array($currentPhoto)) {
+            // If it's an array, try to get the first string value
+            $currentPhoto = null;
+            array_walk_recursive($food->photo, function ($value) use (&$currentPhoto) {
+                if (is_string($value) && !empty(trim($value)) && $currentPhoto === null) {
+                    $currentPhoto = $value;
+                }
+            });
+        }
+        $mainPhoto = $this->determineMainPhoto($request, is_string($currentPhoto) ? $currentPhoto : null);
         $food->photo = $mainPhoto;
 
         $gallery = $this->buildGallery($request, $mainPhoto, $food);
@@ -447,19 +458,50 @@ class FoodController extends Controller
         $existing = $this->decodeJsonField($food->photos);
         $keep = $request->input('keep_photos', []);
 
+        // Normalize existing photos to ensure they're all strings (flatten nested arrays)
+        $normalizedExisting = [];
+        if (!empty($existing)) {
+            array_walk_recursive($existing, function ($value) use (&$normalizedExisting) {
+                if (is_string($value) && !empty(trim($value))) {
+                    $normalizedExisting[] = $value;
+                }
+            });
+        }
+        $existing = $normalizedExisting;
+
         // Delete removed photos from Firebase Storage
         foreach ($existing as $photo) {
-            if (!in_array($photo, (array) $keep)) {
+            // Ensure $photo is a string before passing to deleteFileIfFirebase
+            if (is_string($photo) && !in_array($photo, (array) $keep)) {
                 $this->deleteFileIfFirebase($photo);
             }
         }
 
-        $gallery = array_values(array_filter($existing, function ($photo) use ($keep) {
-            return in_array($photo, (array) $keep);
+        // Normalize keep_photos to ensure they're all strings
+        $normalizedKeep = [];
+        if (!empty($keep)) {
+            foreach ((array) $keep as $item) {
+                if (is_string($item) && !empty(trim($item))) {
+                    $normalizedKeep[] = $item;
+                } elseif (is_array($item)) {
+                    // Flatten nested arrays
+                    array_walk_recursive($item, function ($value) use (&$normalizedKeep) {
+                        if (is_string($value) && !empty(trim($value))) {
+                            $normalizedKeep[] = $value;
+                        }
+                    });
+                }
+            }
+        }
+
+        $gallery = array_values(array_filter($existing, function ($photo) use ($normalizedKeep) {
+            return is_string($photo) && in_array($photo, $normalizedKeep);
         }));
 
-        if ($mainPhoto) {
-            $gallery = array_values(array_filter($gallery, fn($photo) => $photo !== $mainPhoto));
+        if ($mainPhoto && is_string($mainPhoto)) {
+            $gallery = array_values(array_filter($gallery, function ($photo) use ($mainPhoto) {
+                return is_string($photo) && $photo !== $mainPhoto;
+            }));
             array_unshift($gallery, $mainPhoto);
         }
 
@@ -473,7 +515,12 @@ class FoodController extends Controller
 
         $gallery = array_merge($gallery, $this->parseGalleryUrls($request->input('gallery_urls')));
 
-        return array_values(array_filter(array_unique($gallery)));
+        // Ensure all gallery items are strings before returning
+        $gallery = array_values(array_filter(array_unique($gallery), function ($item) {
+            return is_string($item) && !empty(trim($item));
+        }));
+
+        return $gallery;
     }
 
     protected function parseGalleryUrls(?string $raw): array

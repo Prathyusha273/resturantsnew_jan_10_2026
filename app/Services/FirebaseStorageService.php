@@ -89,10 +89,16 @@ class FirebaseStorageService
                 'project_id' => $projectId ?? config('firebase.project_id')
             ]);
         } catch (\Exception $e) {
-            Log::error('Firebase Storage initialization failed', [
+            $errorDetails = [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+                'trace' => $e->getTraceAsString(),
+                'has_credentials_file' => file_exists($credentialsPath),
+                'env_project_id' => !empty(config('firebase.project_id')),
+                'env_private_key' => !empty(config('firebase.private_key')),
+                'env_client_email' => !empty(config('firebase.client_email')),
+            ];
+            
+            Log::error('Firebase Storage initialization failed', $errorDetails);
             // Don't set storage to null here, let it fail gracefully
         }
     }
@@ -108,7 +114,29 @@ class FirebaseStorageService
     public function uploadFile(UploadedFile $file, string $path): string
     {
         if (!$this->storage) {
-            throw new \Exception('Firebase Storage is not initialized. Please check your Firebase configuration.');
+            $credentialsPath = storage_path('app/firebase/credentials.json');
+            $hasCredentialsFile = file_exists($credentialsPath);
+            $hasProjectId = !empty(config('firebase.project_id'));
+            $hasPrivateKey = !empty(config('firebase.private_key'));
+            $hasClientEmail = !empty(config('firebase.client_email'));
+            
+            $message = 'Firebase Storage is not initialized. ';
+            $suggestions = [];
+            
+            if (!$hasCredentialsFile && (!$hasProjectId || !$hasPrivateKey || !$hasClientEmail)) {
+                $suggestions[] = 'Missing Firebase credentials.';
+                if (!$hasCredentialsFile) {
+                    $suggestions[] = 'Option 1: Place credentials.json at: ' . $credentialsPath;
+                }
+                if (!$hasProjectId || !$hasPrivateKey || !$hasClientEmail) {
+                    $suggestions[] = 'Option 2: Set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL in .env file';
+                }
+            } else {
+                $suggestions[] = 'Firebase credentials exist but initialization failed. Check Laravel logs for details.';
+                $suggestions[] = 'Common issues: Invalid private key format, network connectivity, or Firebase project permissions.';
+            }
+            
+            throw new \Exception($message . implode(' ', $suggestions));
         }
 
         try {
@@ -226,6 +254,35 @@ class FirebaseStorageService
         $filename = $basename . '_' . $timestamp . '_' . $random . '.' . $extension;
         
         return $directory !== '.' ? $directory . '/' . $filename : $filename;
+    }
+
+    /**
+     * Check if Firebase Storage is initialized
+     *
+     * @return bool
+     */
+    public function isInitialized(): bool
+    {
+        return $this->storage !== null;
+    }
+
+    /**
+     * Get initialization status with details
+     *
+     * @return array
+     */
+    public function getInitializationStatus(): array
+    {
+        $credentialsPath = storage_path('app/firebase/credentials.json');
+        
+        return [
+            'initialized' => $this->isInitialized(),
+            'has_credentials_file' => file_exists($credentialsPath),
+            'has_project_id' => !empty(config('firebase.project_id')),
+            'has_private_key' => !empty(config('firebase.private_key')),
+            'has_client_email' => !empty(config('firebase.client_email')),
+            'bucket' => $this->bucket,
+        ];
     }
 
     /**

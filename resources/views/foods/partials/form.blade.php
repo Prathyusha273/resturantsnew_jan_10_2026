@@ -4,6 +4,16 @@
     $existingPhoto = $food->photo ?? null;
     $placeholderImage = $placeholderImage ?? asset('assets/images/placeholder.png');
     $extraPhotos = $extraPhotos ?? [];
+    // Normalize extraPhotos to ensure it's a flat array of strings
+    $normalizedExtraPhotos = [];
+    if (!empty($extraPhotos)) {
+        array_walk_recursive($extraPhotos, function ($value) use (&$normalizedExtraPhotos) {
+            if (is_string($value) && !empty(trim($value))) {
+                $normalizedExtraPhotos[] = $value;
+            }
+        });
+    }
+    $extraPhotos = $normalizedExtraPhotos;
     $keepPhotosOld = old('keep_photos', $extraPhotos);
 
     $oldAddOnTitles = old('add_ons_title', []);
@@ -13,13 +23,27 @@
     if (!empty($oldAddOnTitles) || !empty($oldAddOnPrices)) {
         $count = max(count($oldAddOnTitles), count($oldAddOnPrices));
         for ($i = 0; $i < $count; $i++) {
+            $title = $oldAddOnTitles[$i] ?? '';
+            $price = $oldAddOnPrices[$i] ?? '';
+            
+            // Ensure both are strings
+            $title = is_array($title) ? '' : (string) $title;
+            $price = is_array($price) ? '' : (string) $price;
+            
             $addOnRows[] = [
-                'title' => $oldAddOnTitles[$i] ?? '',
-                'price' => $oldAddOnPrices[$i] ?? '',
+                'title' => $title,
+                'price' => $price,
             ];
         }
     } elseif (!empty($addOns ?? [])) {
-        $addOnRows = $addOns;
+        // Ensure addOns from database are also strings
+        $addOnRows = [];
+        foreach ($addOns as $addOn) {
+            $addOnRows[] = [
+                'title' => is_array($addOn['title'] ?? null) ? '' : (string) ($addOn['title'] ?? ''),
+                'price' => is_array($addOn['price'] ?? null) ? '' : (string) ($addOn['price'] ?? ''),
+            ];
+        }
     }
 
     if (empty($addOnRows)) {
@@ -33,26 +57,43 @@
     if (!empty($oldSpecLabels) || !empty($oldSpecValues)) {
         $count = max(count($oldSpecLabels), count($oldSpecValues));
         for ($i = 0; $i < $count; $i++) {
-            if (($oldSpecLabels[$i] ?? '') === '' && ($oldSpecValues[$i] ?? '') === '') {
+            $label = $oldSpecLabels[$i] ?? '';
+            $value = $oldSpecValues[$i] ?? '';
+            
+            // Ensure both are strings
+            $label = is_array($label) ? '' : (string) $label;
+            $value = is_array($value) ? '' : (string) $value;
+            
+            if ($label === '' && $value === '') {
                 continue;
             }
             $specRows[] = [
-                'label' => $oldSpecLabels[$i] ?? '',
-                'value' => $oldSpecValues[$i] ?? '',
+                'label' => $label,
+                'value' => $value,
             ];
         }
     } elseif (!empty($specifications ?? [])) {
         foreach ($specifications as $label => $value) {
-            $specRows[] = ['label' => $label, 'value' => $value];
+            // Ensure value is always a string (handle arrays and other types)
+            $stringValue = '';
+            if (is_array($value)) {
+                // If it's an array, take the first value if it's a simple array, or empty string
+                $stringValue = !empty($value) && is_string($value[0] ?? null) ? (string) $value[0] : '';
+            } elseif (is_string($value) || is_numeric($value) || is_bool($value)) {
+                $stringValue = (string) $value;
+            }
+            
+            $specRows[] = ['label' => (string) $label, 'value' => $stringValue];
         }
     }
 
     $galleryTextarea = old('gallery_urls');
     if ($galleryTextarea === null && !empty($extraPhotos)) {
+        // Filter out the primary photo
         $nonPrimary = array_filter($extraPhotos, function ($photo) use ($existingPhoto) {
             return $photo !== $existingPhoto;
         });
-        $galleryTextarea = implode(PHP_EOL, $nonPrimary);
+        $galleryTextarea = !empty($nonPrimary) ? implode(PHP_EOL, $nonPrimary) : '';
     }
 @endphp
 
