@@ -11,7 +11,7 @@
 <nav class="sidebar-nav">
     <ul id="sidebarnav" style="color: #222; font-weight: 600;">
         <li>
-            <a class="waves-effect waves-dark" href="{{ route('dashboard') }}">
+            <a class="waves-effect waves-dark" href="{{ route('home') }}">
                 <i class="mdi mdi-home"></i>
                 <span class="hide-menu">{{ trans('lang.dashboard') }}</span>
             </a>

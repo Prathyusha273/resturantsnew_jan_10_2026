@@ -152,14 +152,7 @@ class PayoutsController extends Controller
 
     protected function currentVendor(): Vendor
     {
-        $authId = Auth::id();
-        $vendor = Vendor::where('author', $authId)->first();
-
-        if (!$vendor) {
-            abort(403, 'Vendor profile not found.');
-        }
-
-        return $vendor;
+        return $this->getCachedVendor();
     }
 
     protected function availableWithdrawMethods(User $user): array
@@ -218,13 +211,7 @@ class PayoutsController extends Controller
             return $this->currencyMeta;
         }
 
-        $currency = Currency::where('isActive', true)->first();
-
-        return $this->currencyMeta = [
-            'symbol' => $currency->symbol ?? '₹',
-            'symbol_at_right' => (bool) ($currency->symbolAtRight ?? false),
-            'decimal_digits' => $currency->decimal_degits ?? 2,
-        ];
+        return $this->currencyMeta = $this->getCachedCurrency();
     }
 
     protected function formatCurrency(float $amount, array $meta): string

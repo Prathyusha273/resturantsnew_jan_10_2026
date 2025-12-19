@@ -389,14 +389,102 @@
             document.addEventListener('DOMContentLoaded', function() {
                 const loginForm = document.getElementById('login-box');
                 const loginButton = document.getElementById('login_btn');
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfInput = loginForm ? loginForm.querySelector('input[name="_token"]') : null;
+                let isSubmitting = false;
 
+                // Function to refresh CSRF token (returns Promise)
+                function refreshCsrfToken() {
+                    return fetch('/csrf-token', {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.token) {
+                            // Update meta tag
+                            if (csrfMeta) {
+                                csrfMeta.setAttribute('content', data.token);
+                            }
+                            // Update form input
+                            if (csrfInput) {
+                                csrfInput.value = data.token;
+                            }
+                            console.log('CSRF token refreshed successfully');
+                            return data.token;
+                        }
+                        throw new Error('No token in response');
+                    })
+                    .catch(error => {
+                        console.error('Error refreshing CSRF token:', error);
+                        // If refresh fails, try to regenerate session
+                        return fetch('/login', {
+                            method: 'GET',
+                            credentials: 'same-origin',
+                        }).then(() => {
+                            // Reload page to get fresh token
+                            window.location.reload();
+                        });
+                    });
+                }
+
+                // Refresh token every 30 minutes
+                setInterval(refreshCsrfToken, 30 * 60 * 1000);
+
+                // Refresh token when tab becomes visible
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden && !isSubmitting) {
+                        refreshCsrfToken();
+                    }
+                });
+
+                // Refresh token before form submission and wait for it to complete
                 if (loginForm && loginButton) {
-                    loginForm.addEventListener('submit', function() {
+                    loginForm.addEventListener('submit', function(e) {
+                        // Prevent default submission
+                        e.preventDefault();
+
+                        // If already submitting, ignore
+                        if (isSubmitting) {
+                            return false;
+                        }
+
+                        isSubmitting = true;
                         loginButton.disabled = true;
                         loginButton.classList.add('disabled');
                         loginButton.innerText = '{{ __('Logging In...') }}';
+
+                        // Refresh token before submitting
+                        refreshCsrfToken()
+                            .then(() => {
+                                // Small delay to ensure token is updated in form
+                                setTimeout(function() {
+                                    // Now submit the form
+                                    loginForm.submit();
+                                }, 200);
+                            })
+                            .catch(() => {
+                                // If token refresh fails, still try to submit (might work)
+                                setTimeout(function() {
+                                    loginForm.submit();
+                                }, 500);
+                            });
+
+                        return false;
                     });
                 }
+
+                // Initial token refresh on page load (after a short delay)
+                setTimeout(refreshCsrfToken, 500);
             });
         </script>
 

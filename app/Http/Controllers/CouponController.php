@@ -115,6 +115,9 @@ class CouponController extends Controller
         $coupon->id = Str::random(12);
         $this->fillCoupon($coupon, $data, $request, $vendor);
 
+        // Clear relevant caches
+        \Illuminate\Support\Facades\Cache::forget('dashboard_' . $vendor->id);
+
         return redirect()->route('coupons')->with('success', 'Coupon created successfully.');
     }
 
@@ -140,6 +143,9 @@ class CouponController extends Controller
         $data = $this->validateCoupon($request, $coupon->id);
         $this->fillCoupon($coupon, $data, $request, $vendor);
 
+        // Clear relevant caches
+        \Illuminate\Support\Facades\Cache::forget('dashboard_' . $vendor->id);
+
         return redirect()->route('coupons')->with('success', 'Coupon updated successfully.');
     }
 
@@ -156,6 +162,9 @@ class CouponController extends Controller
         }
 
         $coupon->delete();
+
+        // Clear relevant caches
+        \Illuminate\Support\Facades\Cache::forget('dashboard_' . $vendor->id);
 
         return redirect()->route('coupons')->with('success', 'Coupon deleted successfully.');
     }
@@ -198,6 +207,9 @@ class CouponController extends Controller
         $field = $request->input('field');
         $coupon->{$field} = !$coupon->{$field};
         $coupon->save();
+
+        // Clear relevant caches
+        \Illuminate\Support\Facades\Cache::forget('dashboard_' . $vendor->id);
 
         return redirect()->route('coupons')->with('success', 'Coupon updated successfully.');
     }
@@ -339,32 +351,16 @@ class CouponController extends Controller
 
     protected function currentVendor(): Vendor
     {
-        $user = Auth::user();
-
-        if ($user && $user->vendorID) {
-            $vendor = Vendor::where('id', $user->vendorID)->first();
-            if ($vendor) {
-                return $vendor;
-            }
-        }
-
-        $vendor = Vendor::where('author', Auth::id())->first();
-
-        if (!$vendor) {
-            abort(403, 'Vendor profile not found.');
-        }
-
-        return $vendor;
+        return $this->getCachedVendor();
     }
 
     protected function activeCurrency(): array
     {
-        $currency = Currency::where('isActive', true)->first();
-
+        $cached = $this->getCachedCurrency();
         return [
-            'symbol' => $currency->symbol ?? '₹',
-            'symbolAtRight' => (bool) ($currency->symbolAtRight ?? false),
-            'decimals' => $currency->decimal_degits ?? 2,
+            'symbol' => $cached['symbol'],
+            'symbolAtRight' => $cached['symbol_at_right'],
+            'decimals' => $cached['decimal_digits'],
         ];
     }
 

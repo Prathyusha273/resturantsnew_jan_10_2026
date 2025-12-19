@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateRestaurantRequest extends FormRequest
 {
@@ -14,17 +13,9 @@ class UpdateRestaurantRequest extends FormRequest
 
     public function rules(): array
     {
-        $vendorId = optional($this->user())->vendorID;
-
         return [
             'title' => ['required', 'string', 'max:255'],
-            'restaurant_slug' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('vendors', 'restaurant_slug')->ignore($vendorId, 'id'),
-            ],
+            'restaurant_slug' => ['nullable', 'string', 'max:255'],
             'zone_slug' => ['nullable', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:25'],
             'location' => ['required', 'string', 'max:255'],

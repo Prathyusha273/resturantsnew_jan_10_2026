@@ -8,7 +8,7 @@
         </div>
         <div class="col-md-6 align-self-center">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('home') }}">Dashboard</a></li>
                 <li class="breadcrumb-item"><a href="{{ route('foods') }}">Foods</a></li>
                 <li class="breadcrumb-item active">Create</li>
             </ol>
@@ -18,7 +18,7 @@
     <div class="container-fluid">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">Food Information</h4>
+                <h4 class="btn btn-primary mb-0">Food Details</h4>
                 <a href="{{ route('foods') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="fa fa-arrow-left mr-1"></i> Back to list
                 </a>

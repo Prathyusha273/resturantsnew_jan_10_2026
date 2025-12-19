@@ -10,10 +10,12 @@ use App\Services\FirebaseStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Carbon\Carbon;
 
 class FoodController extends Controller
 {
@@ -29,10 +31,15 @@ class FoodController extends Controller
     {
         $vendor = $this->currentVendor();
 
-        $query = VendorProduct::with('category')
+        // Select only needed columns to reduce memory usage
+        $query = VendorProduct::with(['category:id,title'])
+            ->select([
+                'id', 'name', 'description', 'price', 'disPrice', 'photo',
+                'publish', 'isAvailable', 'categoryID', 'updatedAt'
+            ])
             ->where('vendorID', $vendor->id);
 
-        if ($search = trim((string) $request->get('search'))) {
+        if ($search = trim((string)$request->get('search'))) {
             $query->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
@@ -47,7 +54,20 @@ class FoodController extends Controller
 
         $foods = $query->orderByDesc('updatedAt')->get();
 
-        $categories = VendorCategory::orderBy('title')->get(['id', 'title']);
+        // Format updatedAt dates in controller instead of view
+        $foods->transform(function ($food) {
+            $food->formattedUpdatedAt = $food->updatedAt
+                ? Carbon::parse($food->updatedAt)
+                    ->timezone('Asia/Kolkata')
+                    ->format('M d, Y H:i')
+                : '—';
+            return $food;
+        });
+
+        // Cache categories for 5 minutes
+        $categories = Cache::remember('vendor_categories_list', 300, function () {
+            return VendorCategory::orderBy('title')->get(['id', 'title']);
+        });
 
         return view('foods.index', [
             'foods' => $foods,
@@ -59,13 +79,19 @@ class FoodController extends Controller
 
     public function create()
     {
-        $vendor = $this->currentVendor();
-        $categories = VendorCategory::orderBy('title')->get(['id', 'title']);
+        // Cache categories for 5 minutes - optimized query (select only needed columns)
+        $categories = Cache::remember('vendor_categories_list', 300, function () {
+            return VendorCategory::select(['id', 'title'])
+                ->orderBy('title')
+                ->get();
+        });
+
+        // Cache placeholder image for 5 minutes
+        $placeholderImage = $this->placeholderImage();
 
         return view('foods.create', [
             'categories' => $categories,
-            'vendor' => $vendor,
-            'placeholderImage' => $this->placeholderImage(),
+            'placeholderImage' => $placeholderImage,
         ]);
     }
 
@@ -79,6 +105,9 @@ class FoodController extends Controller
 
         $this->fillFood($food, $data, $request, $vendor);
 
+        // Clear vendor cache after creating food
+        $this->clearVendorCache();
+
         return redirect()->route('foods')->with('success', 'Food created successfully.');
     }
 
@@ -89,16 +118,17 @@ class FoodController extends Controller
             ->where('id', $id)
             ->firstOrFail();
 
-        $categories = VendorCategory::orderBy('title')->get(['id', 'title']);
+        // Cache categories for 5 minutes
+        $categories = Cache::remember('vendor_categories_list', 300, function () {
+            return VendorCategory::orderBy('title')->get(['id', 'title']);
+        });
 
-        $extraPhotos = $this->decodeJsonField($food->photos);
         $addOns = $this->combineAddOns($food);
         $specifications = $this->decodeJsonField($food->product_specification);
 
         return view('foods.edit', [
             'food' => $food,
             'categories' => $categories,
-            'extraPhotos' => $extraPhotos,
             'addOns' => $addOns,
             'specifications' => $specifications,
             'vendor' => $vendor,
@@ -117,6 +147,9 @@ class FoodController extends Controller
 
         $this->fillFood($food, $data, $request, $vendor);
 
+        // Clear vendor cache after updating food
+        $this->clearVendorCache();
+
         return redirect()->route('foods')->with('success', 'Food updated successfully.');
     }
 
@@ -128,6 +161,9 @@ class FoodController extends Controller
             ->firstOrFail();
 
         $food->delete();
+
+        // Clear vendor cache after deleting food
+        $this->clearVendorCache();
 
         return redirect()->route('foods')->with('success', 'Food deleted successfully.');
     }
@@ -147,21 +183,41 @@ class FoodController extends Controller
             ->whereIn('id', $ids)
             ->delete();
 
+        // Clear vendor cache after bulk delete
+        $this->clearVendorCache();
+
         return redirect()->route('foods')->with('success', 'Selected foods deleted successfully.');
     }
 
     public function togglePublish(Request $request, $id)
     {
-        $vendor = $this->currentVendor();
-        $food = VendorProduct::where('vendorID', $vendor->id)
-            ->where('id', $id)
-            ->firstOrFail();
+        try {
+            $vendor = $this->currentVendor();
+            $food = VendorProduct::where('vendorID', $vendor->id)
+                ->where('id', $id)
+                ->firstOrFail();
 
-        $food->publish = $request->boolean('publish');
-        $food->updatedAt = now()->toAtomString();
-        $food->save();
+            $current = $food->publish;
+            $new = $current ? 0 : 1;
 
-        return back()->with('success', 'Publish status updated.');
+            $food->publish = $new;
+            $food->updatedAt = now()->toAtomString();
+            $food->save();
+
+            // Clear vendor cache after toggle
+            $this->clearVendorCache();
+
+            return response()->json([
+                'success' => true,
+                'publish' => $new
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function toggleAvailability(Request $request, $id)
@@ -174,6 +230,9 @@ class FoodController extends Controller
         $food->isAvailable = $request->boolean('isAvailable');
         $food->updatedAt = now()->toAtomString();
         $food->save();
+
+        // Clear vendor cache after toggle
+        $this->clearVendorCache();
 
         return back()->with('success', 'Availability updated.');
     }
@@ -201,15 +260,18 @@ class FoodController extends Controller
                 ->where('id', $id)
                 ->firstOrFail();
 
-            $formattedValue = number_format((float) $value, 2, '.', '');
+            $formattedValue = number_format((float)$value, 2, '.', '');
             $food->{$field} = $formattedValue;
 
-            if ($field === 'price' && (float) $food->disPrice > (float) $formattedValue) {
+            if ($field === 'price' && (float)$food->disPrice > (float)$formattedValue) {
                 $food->disPrice = '0';
             }
 
             $food->updatedAt = now()->toAtomString();
             $food->save();
+
+            // Clear vendor cache after inline update
+            $this->clearVendorCache();
 
             return response()->json([
                 'success' => true,
@@ -310,13 +372,13 @@ class FoodController extends Controller
                         $foodData = [
                             'id' => Str::uuid()->toString(),
                             'name' => $data['name'],
-                            'price' => number_format((float) $data['price'], 2, '.', ''),
+                            'price' => number_format((float)$data['price'], 2, '.', ''),
                             'description' => $data['description'] ?? '',
-                            'disPrice' => number_format((float) ($data['disPrice'] ?? 0), 2, '.', ''),
+                            'disPrice' => number_format((float)($data['disPrice'] ?? 0), 2, '.', ''),
                             'publish' => !empty($data['publish']),
                             'nonveg' => !empty($data['nonveg']),
                             'veg' => empty($data['nonveg']),
-                            'isAvailable' => array_key_exists('isAvailable', $data) ? (bool) $data['isAvailable'] : true,
+                            'isAvailable' => array_key_exists('isAvailable', $data) ? (bool)$data['isAvailable'] : true,
                             'photo' => $data['photo'] ?? '',
                             'createdAt' => now()->toAtomString(),
                             'updatedAt' => now()->toAtomString(),
@@ -373,6 +435,9 @@ class FoodController extends Controller
             'specification_label.*' => 'nullable|string|max:255',
             'specification_value' => 'nullable|array',
             'specification_value.*' => 'nullable|string|max:255',
+        ], [
+            'photo_upload.max' => 'The photo upload must not be greater than 4mb.',
+            'gallery_uploads.*.max' => 'The gallery uploads must not be greater than 4mb.',
         ]);
     }
 
@@ -382,8 +447,8 @@ class FoodController extends Controller
 
         $food->vendorID = $vendor->id;
         $food->name = $data['name'];
-        $food->price = number_format((float) $data['price'], 2, '.', '');
-        $food->disPrice = isset($data['disPrice']) ? number_format((float) $data['disPrice'], 2, '.', '') : '0';
+        $food->price = number_format((float)$data['price'], 2, '.', '');
+        $food->disPrice = isset($data['disPrice']) ? number_format((float)$data['disPrice'], 2, '.', '') : '0';
         $food->description = $data['description'];
         $food->categoryID = $data['categoryID'];
         $food->quantity = $data['quantity'] ?? -1;
@@ -419,7 +484,9 @@ class FoodController extends Controller
         $food->photo = $mainPhoto;
 
         $gallery = $this->buildGallery($request, $mainPhoto, $food);
-        $food->photos = !empty($gallery) ? json_encode($gallery) : null;
+        // Limit gallery to prevent database overflow - keep only first 10 photos
+        $gallery = array_slice($gallery, 0, 10);
+        $food->photos = !empty($gallery) ? json_encode($gallery, JSON_UNESCAPED_SLASHES) : null;
 
         $food->save();
     }
@@ -455,56 +522,14 @@ class FoodController extends Controller
 
     protected function buildGallery(Request $request, ?string $mainPhoto, VendorProduct $food): array
     {
-        $existing = $this->decodeJsonField($food->photos);
-        $keep = $request->input('keep_photos', []);
+        $gallery = [];
 
-        // Normalize existing photos to ensure they're all strings (flatten nested arrays)
-        $normalizedExisting = [];
-        if (!empty($existing)) {
-            array_walk_recursive($existing, function ($value) use (&$normalizedExisting) {
-                if (is_string($value) && !empty(trim($value))) {
-                    $normalizedExisting[] = $value;
-                }
-            });
-        }
-        $existing = $normalizedExisting;
-
-        // Delete removed photos from Firebase Storage
-        foreach ($existing as $photo) {
-            // Ensure $photo is a string before passing to deleteFileIfFirebase
-            if (is_string($photo) && !in_array($photo, (array) $keep)) {
-                $this->deleteFileIfFirebase($photo);
-            }
-        }
-
-        // Normalize keep_photos to ensure they're all strings
-        $normalizedKeep = [];
-        if (!empty($keep)) {
-            foreach ((array) $keep as $item) {
-                if (is_string($item) && !empty(trim($item))) {
-                    $normalizedKeep[] = $item;
-                } elseif (is_array($item)) {
-                    // Flatten nested arrays
-                    array_walk_recursive($item, function ($value) use (&$normalizedKeep) {
-                        if (is_string($value) && !empty(trim($value))) {
-                            $normalizedKeep[] = $value;
-                        }
-                    });
-                }
-            }
-        }
-
-        $gallery = array_values(array_filter($existing, function ($photo) use ($normalizedKeep) {
-            return is_string($photo) && in_array($photo, $normalizedKeep);
-        }));
-
+        // Start with main photo if provided
         if ($mainPhoto && is_string($mainPhoto)) {
-            $gallery = array_values(array_filter($gallery, function ($photo) use ($mainPhoto) {
-                return is_string($photo) && $photo !== $mainPhoto;
-            }));
-            array_unshift($gallery, $mainPhoto);
+            $gallery[] = $mainPhoto;
         }
 
+        // Add new gallery uploads
         if ($request->hasFile('gallery_uploads')) {
             foreach ($request->file('gallery_uploads') as $file) {
                 if ($file instanceof UploadedFile) {
@@ -513,7 +538,17 @@ class FoodController extends Controller
             }
         }
 
+        // Add gallery URLs
         $gallery = array_merge($gallery, $this->parseGalleryUrls($request->input('gallery_urls')));
+
+        // Delete old photos from Firebase Storage (except main photo if it hasn't changed)
+        $existing = $this->decodeJsonField($food->photos);
+        foreach ($existing as $photo) {
+            // Don't delete if it's the main photo and main photo hasn't changed
+            if (is_string($photo) && $photo !== $mainPhoto && $photo !== $food->photo) {
+                $this->deleteFileIfFirebase($photo);
+            }
+        }
 
         // Ensure all gallery items are strings before returning
         $gallery = array_values(array_filter(array_unique($gallery), function ($item) {
@@ -621,39 +656,177 @@ class FoodController extends Controller
 
     protected function storeImage(UploadedFile $file): string
     {
+        // Compress image if larger than 2MB
+        $fileToUpload = $this->compressImageIfNeeded($file);
+
         // Upload to Firebase Storage
         return $this->firebaseStorage->uploadFile(
-            $file,
-            'vendor_products/product_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension()
+            $fileToUpload,
+            'vendor_products/product_' . time() . '_' . uniqid() . '.' . $fileToUpload->getClientOriginalExtension()
         );
+    }
+
+    /**
+     * Compress image if it's larger than 2MB
+     *
+     * @param UploadedFile $file
+     * @return UploadedFile
+     */
+    protected function compressImageIfNeeded(UploadedFile $file): UploadedFile
+    {
+        $maxSize = 2 * 1024 * 1024; // 2MB in bytes
+
+        // Only compress if file is larger than 2MB
+        if ($file->getSize() <= $maxSize) {
+            return $file;
+        }
+
+        // Check if it's an image
+        if (!in_array($file->getMimeType(), ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])) {
+            return $file;
+        }
+
+        try {
+            // Create image resource
+            $image = null;
+            $mimeType = $file->getMimeType();
+
+            if ($mimeType === 'image/jpeg' || $mimeType === 'image/jpg') {
+                $image = imagecreatefromjpeg($file->getPathname());
+            } elseif ($mimeType === 'image/png') {
+                $image = imagecreatefrompng($file->getPathname());
+            } elseif ($mimeType === 'image/webp') {
+                $image = imagecreatefromwebp($file->getPathname());
+            }
+
+            if (!$image) {
+                return $file; // Return original if we can't process
+            }
+
+            // Get original dimensions
+            $width = imagesx($image);
+            $height = imagesy($image);
+
+            // Calculate new dimensions (max 1920px on longest side, maintain aspect ratio)
+            $maxDimension = 1920;
+            if ($width > $height) {
+                if ($width > $maxDimension) {
+                    $newWidth = $maxDimension;
+                    $newHeight = (int) ($height * ($maxDimension / $width));
+                } else {
+                    $newWidth = $width;
+                    $newHeight = $height;
+                }
+            } else {
+                if ($height > $maxDimension) {
+                    $newHeight = $maxDimension;
+                    $newWidth = (int) ($width * ($maxDimension / $height));
+                } else {
+                    $newWidth = $width;
+                    $newHeight = $height;
+                }
+            }
+
+            // Create new image with new dimensions
+            $compressed = imagecreatetruecolor($newWidth, $newHeight);
+
+            // Preserve transparency for PNG
+            if ($mimeType === 'image/png') {
+                imagealphablending($compressed, false);
+                imagesavealpha($compressed, true);
+                $transparent = imagecolorallocatealpha($compressed, 255, 255, 255, 127);
+                imagefilledrectangle($compressed, 0, 0, $newWidth, $newHeight, $transparent);
+            }
+
+            // Resize image
+            imagecopyresampled($compressed, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+            // Save compressed image to temporary file
+            $tempPath = sys_get_temp_dir() . '/' . uniqid('compressed_') . '.' . $file->getClientOriginalExtension();
+
+            $quality = 85; // Start with 85% quality
+            $saved = false;
+
+            // Try different quality levels until file is under 2MB
+            while ($quality >= 50 && !$saved) {
+                if ($mimeType === 'image/jpeg' || $mimeType === 'image/jpg') {
+                    $saved = imagejpeg($compressed, $tempPath, $quality);
+                } elseif ($mimeType === 'image/png') {
+                    // PNG compression level (0-9, 9 is highest compression)
+                    $pngQuality = (int) ((100 - $quality) / 11.11);
+                    $saved = imagepng($compressed, $tempPath, $pngQuality);
+                } elseif ($mimeType === 'image/webp') {
+                    $saved = imagewebp($compressed, $tempPath, $quality);
+                }
+
+                if ($saved && file_exists($tempPath)) {
+                    $compressedSize = filesize($tempPath);
+                    if ($compressedSize <= $maxSize) {
+                        break; // File is now under 2MB
+                    }
+                    // If still too large, reduce quality
+                    $quality -= 5;
+                    if ($quality < 50) {
+                        break; // Don't go below 50% quality
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            // Clean up
+            imagedestroy($image);
+            imagedestroy($compressed);
+
+            if ($saved && file_exists($tempPath)) {
+                // Create new UploadedFile from compressed image
+                $compressedFile = new UploadedFile(
+                    $tempPath,
+                    $file->getClientOriginalName(),
+                    $file->getMimeType(),
+                    null,
+                    true // test mode
+                );
+
+                return $compressedFile;
+            }
+
+            // If compression failed, return original
+            return $file;
+        } catch (\Exception $e) {
+            // Log error but don't fail - return original file
+            \Log::warning('Image compression failed: ' . $e->getMessage());
+            return $file;
+        }
     }
 
     protected function currentVendor(): Vendor
     {
-        $user = Auth::user();
-
-        if ($user && $user->vendorID) {
-            $vendor = Vendor::where('id', $user->vendorID)->first();
-            if ($vendor) {
-                return $vendor;
-            }
-        }
-
-        $vendor = Vendor::where('author', Auth::id())->first();
-
-        if (!$vendor) {
-            abort(403, 'Vendor profile not found.');
-        }
-
-        return $vendor;
+        return $this->getCachedVendor();
     }
 
     protected function placeholderImage(): string
     {
-        $fields = Setting::getFields('placeHolderImage');
-        $url = $fields['image'] ?? null;
+        // Cache placeholder image URL for 5 minutes
+        // Use a more specific cache key and optimize the query
+        return Cache::remember('placeholder_image_url', 300, function () {
+            // Optimize: Select only the fields column instead of entire record
+            $setting = Setting::select('fields')
+                ->where('document_name', 'placeHolderImage')
+                ->first();
 
-        return $url ?: asset('assets/images/placeholder.png');
+            if (!$setting || !$setting->fields) {
+                return asset('assets/images/placeholder.png');
+            }
+
+            $fields = is_array($setting->fields)
+                ? $setting->fields
+                : json_decode($setting->fields, true);
+
+            $url = $fields['image'] ?? null;
+
+            return $url ?: asset('assets/images/placeholder.png');
+        });
     }
 
     /**
@@ -688,6 +861,25 @@ class FoodController extends Controller
         if (Storage::disk('public')->exists($relative)) {
             Storage::disk('public')->delete($relative);
         }
+    }
+
+    /**
+     * Clear cached vendor data
+     * Call this when vendor-related data changes
+     */
+    protected function clearVendorCache(): void
+    {
+        $userId = Auth::id();
+        Cache::forget("current_vendor_{$userId}");
+    }
+
+    /**
+     * Clear categories cache
+     * Call this when categories are updated
+     */
+    protected function clearCategoriesCache(): void
+    {
+        Cache::forget('vendor_categories_list');
     }
 }
 

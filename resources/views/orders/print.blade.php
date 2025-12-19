@@ -8,7 +8,7 @@
         </div>
         <div class="col-md-7 align-self-center">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url('/dashboard') }}">{{ trans('lang.dashboard') }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ url('/') }}">{{ trans('lang.dashboard') }}</a></li>
                 <li class="breadcrumb-item"><a href="{{ route('orders') }}">{{ trans('lang.order_plural') }}</a></li>
                 <li class="breadcrumb-item active">{{ trans('lang.print_order') }}</li>
             </ol>
@@ -96,42 +96,16 @@
                         <table class="table">
                             <tbody>
                                 <tr>
-                                    <td>{{ trans('lang.items_price') }}</td>
-                                    <td class="text-right">{{ $details['summary']['items_total'] }}</td>
+                                    <td class="seprater" colspan="2">
+                                        <hr>
+                                        <span>{{ trans('lang.sub_total') }}</span>
+                                    </td>
                                 </tr>
-                                <tr>
-                                    <td>{{ trans('lang.addon_cost') }}</td>
-                                    <td class="text-right">{{ $details['summary']['addons_total'] }}</td>
-                                </tr>
-                                <tr>
-                                    <td>{{ trans('lang.sub_total') }}</td>
-                                    <td class="text-right">{{ $details['summary']['subtotal'] }}</td>
-                                </tr>
-                                <tr>
-                                    <td>{{ trans('lang.coupon_discount') }}</td>
-                                    <td class="text-right">- {{ $details['summary']['discount'] }}</td>
-                                </tr>
-                                <tr>
-                                    <td>{{ trans('lang.special_offer') }}</td>
-                                    <td class="text-right">- {{ $details['summary']['special_discount'] }}</td>
-                                </tr>
-                                @foreach($details['summary']['taxes'] as $tax)
-                                    <tr>
-                                        <td>{{ $tax['label'] }}</td>
-                                        <td class="text-right">{{ $tax['amount'] }}</td>
-                                    </tr>
-                                @endforeach
-                                <tr>
-                                    <td>{{ trans('lang.deliveryFee') }}</td>
-                                    <td class="text-right">{{ $details['summary']['delivery'] }}</td>
-                                </tr>
-                                <tr>
-                                    <td>{{ trans('lang.dm_tips') }}</td>
-                                    <td class="text-right">{{ $details['summary']['tip'] }}</td>
-                                </tr>
-                                <tr class="border-top">
-                                    <td><strong>{{ trans('lang.total') }}</strong></td>
-                                    <td class="text-right"><strong>{{ $details['summary']['grand_total'] }}</strong></td>
+                                <tr class="final-rate">
+                                    <td class="label">Subtotal</td>
+                                    <td class="sub_total text-right" style="color:green">
+                                        ({{ $details['summary']['subtotal'] }})
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>

@@ -8,7 +8,7 @@
         </div>
         <div class="col-md-7 align-self-center">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{url('/dashboard')}}">{{trans('lang.dashboard')}}</a></li>
+                <li class="breadcrumb-item"><a href="{{url('/')}}">{{trans('lang.dashboard')}}</a></li>
                 <li class="breadcrumb-item active">{{trans('lang.wallet_transaction_plural')}}</li>
             </ol>
         </div>
@@ -134,24 +134,27 @@
                     buttons: [
                         {
                             extend: 'excelHtml5',
-                            text: '{{trans("lang.export_excel")}}',
-                            action: function (e, dt, button, config) {
-                                exportData(dt, 'excel', fieldConfig);
-                            }
+                            text: 'Export Excel',
+                            exportOptions: {
+                                columns: ':visible' // Export all visible columns
+                            },
+                            title: 'transactions',
                         },
                         {
                             extend: 'pdfHtml5',
-                            text: '{{trans("lang.export_pdf")}}',
-                            action: function (e, dt, button, config) {
-                                exportData(dt, 'pdf', fieldConfig);
-                            }
+                            text: 'Export PDF',
+                            exportOptions: {
+                                columns: ':visible' // Export all visible columns
+                            },
+                            title: 'transactions',
                         },
                         {
                             extend: 'csvHtml5',
-                            text: '{{trans("lang.export_csv")}}',
-                            action: function (e, dt, button, config) {
-                                exportData(dt, 'csv', fieldConfig);
-                            }
+                            text: 'Export CSV',
+                            exportOptions: {
+                                columns: ':visible' // Export all visible columns
+                            },
+                            title: 'transactions ',
                         }
                     ]
                 }

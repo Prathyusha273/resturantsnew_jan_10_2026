@@ -62,6 +62,20 @@ class LoginController extends Controller
     }
 
     /**
+     * Show the application's login form.
+     * Regenerate CSRF token to prevent 419 errors.
+     *
+     * @return \Illuminate\View\View
+     */
+    public function showLoginForm()
+    {
+        // Regenerate CSRF token to ensure fresh token on page load
+        request()->session()->regenerateToken();
+
+        return view('auth.login');
+    }
+
+    /**
      * Handle a login request to the application.
      *
      * @param \Illuminate\Http\Request $request
@@ -256,7 +270,7 @@ class LoginController extends Controller
 
         return $request->wantsJson()
             ? new \Illuminate\Http\JsonResponse([], 204)
-            : redirect('/');
+            : redirect('/login');
     }
 
     /**

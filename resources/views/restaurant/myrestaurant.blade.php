@@ -88,7 +88,7 @@ $workingHours = old(
             </div>
             <div class="col-md-7 align-self-center">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">{{ trans('lang.dashboard') }}</a>
+                    <li class="breadcrumb-item"><a href="{{ route('home') }}">{{ trans('lang.dashboard') }}</a>
                     </li>
                     <li class="breadcrumb-item active">{{ trans('lang.myrestaurant_plural') }}</li>
                 </ol>
@@ -147,9 +147,9 @@ $workingHours = old(
                                                name="restaurant_slug"
                                                class="form-control @error('restaurant_slug') is-invalid @enderror"
                                                value="{{ old('restaurant_slug', $vendorData->restaurant_slug ?? '') }}"
-                                               required>
+                                               readonly>
                                         <small
-                                            class="form-text text-muted">{{ __('Auto-generated from restaurant name, but you can edit it.') }}</small>
+                                            class="form-text text-muted">{{ __('Auto-generated from restaurant name.') }}</small>
                                         @error('restaurant_slug')
                                         <small class="text-danger">{{ $message }}</small>
                                         @enderror
@@ -173,7 +173,7 @@ $workingHours = old(
                                             <option value="">{{ trans('lang.select_cuisines') }}</option>
                                             @foreach($cuisines as $cuisine)
                                                 <option
-                                                    value="{{ $cuisine->id }}" {{ $selectedCuisine === $cuisine->id ? 'selected' : '' }}>
+                                                    value="{{ $cuisine->id }}" {{ (string) $selectedCuisine === (string) $cuisine->id ? 'selected' : '' }}>
                                                     {{ $cuisine->title }}
                                                 </option>
                                             @endforeach
@@ -741,7 +741,7 @@ $workingHours = old(
                             <button type="submit" class="btn btn-primary">
                                 <i class="fa fa-save"></i> {{ trans('lang.save') }}
                             </button>
-                            <a href="{{ route('dashboard') }}" class="btn btn-default">
+                            <a href="{{ route('home') }}" class="btn btn-default">
                                 <i class="fa fa-undo"></i> {{ trans('lang.cancel') }}
                             </a>
                         </div>
@@ -840,15 +840,14 @@ $workingHours = old(
             const specialDiscountEnable = document.getElementById('special_discount_enable');
 
             if (nameInput && slugInput) {
+                // Auto-update restaurant slug when name changes (readonly field)
                 nameInput.addEventListener('input', () => {
-                    if (slugInput.dataset.manual === 'true') {
-                        return;
-                    }
                     slugInput.value = slugify(nameInput.value);
                 });
-                slugInput.addEventListener('input', () => {
-                    slugInput.dataset.manual = 'true';
-                });
+                // Initial slug generation if empty
+                if (!slugInput.value && nameInput.value) {
+                    slugInput.value = slugify(nameInput.value);
+                }
             }
 
             if (zoneSelect && zoneSlug) {

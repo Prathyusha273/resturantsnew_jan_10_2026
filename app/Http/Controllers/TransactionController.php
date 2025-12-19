@@ -104,16 +104,32 @@ class TransactionController extends Controller
 
     protected function formatExportRow(WalletTransaction $transaction): array
     {
+        $currency = $this->currencyMeta();
         $date = $this->parseDate($transaction->date);
         $amount = (float) ($transaction->amount ?? 0);
-        $amount = $transaction->isTopUp ? $amount : -1 * $amount;
+
+        // Format amount with currency
+        $formatted = number_format($amount, $currency['decimal_digits']);
+        $amountDisplay = $currency['symbol_at_right']
+            ? $formatted . $currency['symbol']
+            : $currency['symbol'] . $formatted;
+
+        // Determine if credit or debit
+        $isCredit = $transaction->isTopUp
+            || strtolower((string) $transaction->payment_method) === 'cancelled order payment';
+
+        if ($isCredit) {
+            $amountDisplay = '+' . $amountDisplay;
+        } else {
+            $amountDisplay = '-' . $amountDisplay;
+        }
 
         return [
-            'transactionamount' => $amount,
-            'payment_method' => $transaction->payment_method,
-            'payment_status' => $transaction->payment_status,
-            'note' => $transaction->note,
-            'date' => $date ? ['seconds' => $date->getTimestamp()] : null,
+            'amount' => $amountDisplay,
+            'date' => $date ? $date->format('d M Y h:i A') : '',
+            'payment_method' => $transaction->payment_method ?? '',
+            'note' => $transaction->note ?? '',
+            'payment_status' => $transaction->payment_status ?? '',
         ];
     }
 
@@ -173,13 +189,7 @@ class TransactionController extends Controller
             return $this->currencyMeta;
         }
 
-        $currency = Currency::where('isActive', true)->first();
-
-        return $this->currencyMeta = [
-            'symbol' => $currency->symbol ?? '₹',
-            'symbol_at_right' => (bool) ($currency->symbolAtRight ?? false),
-            'decimal_digits' => $currency->decimal_degits ?? 2,
-        ];
+        return $this->currencyMeta = $this->getCachedCurrency();
     }
 
     protected function parseDate(?string $value): ?Carbon

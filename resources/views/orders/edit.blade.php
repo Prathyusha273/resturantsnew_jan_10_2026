@@ -8,7 +8,7 @@
         </div>
         <div class="col-md-7 align-self-center">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url('/dashboard') }}">{{ trans('lang.dashboard') }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ url('/') }}">{{ trans('lang.dashboard') }}</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('orders') }}">{{ trans('lang.order_plural') }}</a>
                     </li>
                     <li class="breadcrumb-item active">{{ trans('lang.order_edit') }}</li>
@@ -88,7 +88,7 @@
                                                         <select id="order_status" name="status" class="form-control">
                                                             @foreach($statusOptions as $status)
                                                                 <option
-                                                                    value="{{ $status }}" {{ old('status', $order->status) === $status ? 'selected' : '' }}>
+                                                                    value="{{ $status }}" {{ old('status', $order->status ?: 'Order Placed') === $status ? 'selected' : '' }}>
                                                                     {{ $status }}
                                                     </option>
                                                             @endforeach
@@ -192,7 +192,8 @@
                                                                         ({{ $details['summary']['subtotal'] }})
                                                                     </td>
                                                                 </tr>
-                                                                @if($details['summary']['discount'] !== '₹0.00' && $details['summary']['discount'] !== '$0.00')
+                                                                {{-- Discount section commented out --}}
+                                                                {{-- @if($details['summary']['discount'] !== '₹0.00' && $details['summary']['discount'] !== '$0.00')
                                                                     <tr>
                                                                         <td class="seprater" colspan="2">
                                                                             <hr>
@@ -205,32 +206,33 @@
                                                                             (-{{ $details['summary']['discount'] }})
                                                                         </td>
                                                                     </tr>
-                                                                @endif
-                                                                @if($details['summary']['special_discount'] !== '₹0.00' && $details['summary']['special_discount'] !== '$0.00')
-                                                                    <tr>
-                                                                        <td class="label">{{ trans('lang.special_offer') }} {{ trans('lang.discount') }}</td>
-                                                                        <td class="special_discount text-danger">
-                                                                            (-{{ $details['summary']['special_discount'] }}
-                                                                            )
-                                                                        </td>
-                                                                    </tr>
-                                                                @endif
-                                                                @if(!empty($details['summary']['taxes']))
-                                                                    <tr>
-                                                                        <td class="seprater" colspan="2">
-                                                                            <hr>
-                                                                            <span>Tax Calculation</span>
-                                                                        </td>
-                                                                    </tr>
-                                                                    @foreach($details['summary']['taxes'] as $tax)
-                                                                        <tr>
-                                                                            <td class="label">{{ $tax['label'] }}</td>
-                                                                            <td class="tax_amount" id="greenColor">
-                                                                                +{{ $tax['amount'] }}</td>
-                                                                        </tr>
-                                                                    @endforeach
-                                                                @endif
-                                                                @if($details['summary']['delivery'] !== '₹0.00' && $details['summary']['delivery'] !== '$0.00')
+                                                                @endif --}}
+{{--                                                                @if($details['summary']['special_discount'] !== '₹0.00' && $details['summary']['special_discount'] !== '$0.00')--}}
+{{--                                                                    <tr>--}}
+{{--                                                                        <td class="label">{{ trans('lang.special_offer') }} {{ trans('lang.discount') }}</td>--}}
+{{--                                                                        <td class="special_discount text-danger">--}}
+{{--                                                                            (-{{ $details['summary']['special_discount'] }}--}}
+{{--                                                                            )--}}
+{{--                                                                        </td>--}}
+{{--                                                                    </tr>--}}
+{{--                                                                @endif--}}
+{{--                                                                @if(!empty($details['summary']['taxes']))--}}
+{{--                                                                    <tr>--}}
+{{--                                                                        <td class="seprater" colspan="2">--}}
+{{--                                                                            <hr>--}}
+{{--                                                                            <span>Tax Calculation</span>--}}
+{{--                                                                        </td>--}}
+{{--                                                                    </tr>--}}
+{{--                                                                    @foreach($details['summary']['taxes'] as $tax)--}}
+{{--                                                                        <tr>--}}
+{{--                                                                            <td class="label">{{ $tax['label'] }}</td>--}}
+{{--                                                                            <td class="tax_amount" id="greenColor">--}}
+{{--                                                                                +{{ $tax['amount'] }}</td>--}}
+{{--                                                                        </tr>--}}
+{{--                                                                    @endforeach--}}
+{{--                                                                @endif--}}
+                                                                {{-- Delivery charge section commented out --}}
+                                                                {{-- @if($details['summary']['delivery'] !== '₹0.00' && $details['summary']['delivery'] !== '$0.00')
                                                                     <tr>
                                                                         <td class="seprater" colspan="2">
                                                                             <hr>
@@ -242,30 +244,30 @@
                                                                         <td class="deliveryCharge" id="greenColor">
                                                                             +{{ $details['summary']['delivery'] }}</td>
                                                                     </tr>
-                                                                @endif
-                                                                @if($details['summary']['tip'] !== '₹0.00' && $details['summary']['tip'] !== '$0.00')
-                                                                    <tr>
-                                                                        <td class="seprater" colspan="2">
-                                                                            <hr>
-                                                                            <span>{{ trans('lang.tip') }}</span>
-                                                                        </td>
-                                                                    </tr>
-                                                                    <tr>
-                                                                        <td class="label">{{ trans('lang.tip_amount') }}</td>
-                                                                        <td class="tip_amount_val" id="greenColor">
-                                                                            +{{ $details['summary']['tip'] }}</td>
-                                                                    </tr>
-                                                                @endif
+                                                                @endif --}}
+{{--                                                                @if($details['summary']['tip'] !== '₹0.00' && $details['summary']['tip'] !== '$0.00')--}}
+{{--                                                                    <tr>--}}
+{{--                                                                        <td class="seprater" colspan="2">--}}
+{{--                                                                            <hr>--}}
+{{--                                                                            <span>{{ trans('lang.tip') }}</span>--}}
+{{--                                                                        </td>--}}
+{{--                                                                    </tr>--}}
+{{--                                                                    <tr>--}}
+{{--                                                                        <td class="label">{{ trans('lang.tip_amount') }}</td>--}}
+{{--                                                                        <td class="tip_amount_val" id="greenColor">--}}
+{{--                                                                            +{{ $details['summary']['tip'] }}</td>--}}
+{{--                                                                    </tr>--}}
+{{--                                                                @endif--}}
                                                                 <tr>
                                                                     <td class="seprater" colspan="2">
                                                                         <hr>
                                                                     </td>
                                                                 </tr>
-                                                                <tr class="grand-total">
-                                                                    <td class="label">{{ trans('lang.total_amount') }}</td>
-                                                                    <td class="total_price_val"
-                                                                        id="greenColor">{{ $details['summary']['grand_total'] }}</td>
-                                                                </tr>
+{{--                                                                <tr class="grand-total">--}}
+{{--                                                                    <td class="label">{{ trans('lang.total_amount') }}</td>--}}
+{{--                                                                    <td class="total_price_val"--}}
+{{--                                                                        id="greenColor">{{ $details['summary']['grand_total'] }}</td>--}}
+{{--                                                                </tr>--}}
                                                             </tbody>
                                                         </table>
                                                     </div>
