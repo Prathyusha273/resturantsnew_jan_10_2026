@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Models\VendorUsers;
 use App\Models\Vendor;
@@ -32,33 +33,48 @@ class HomeController extends Controller
     public function index()
     {
         $user = Auth::user();
-    
+
         // Get firebase id from users table
         $firebaseId = $user->firebase_id;
-    
-        // Prefetch all data in optimized queries - fetch all required data at once
-        $vendor = Vendor::where('author', $firebaseId)->first();
-        $currency = Currency::where('isActive', true)->first();
-    
-        // Set default currency meta if currency not found
-        $currencyMeta = [
-            'symbol' => $currency->symbol ?? '₹',
-            'symbol_at_right' => (bool) ($currency->symbolAtRight ?? false),
-            'decimal_digits' => $currency->decimal_degits ?? 2,
-        ];
-    
-        $orders = collect();
-        $productCount = 0;
-    
-        // Load vendor-specific data with optimized prefetch queries
-        if ($vendor) {
-            // Fetch all orders and product count for this vendor
-            $orders = RestaurantOrder::where('vendorID', $vendor->id)->get();
-            $productCount = VendorProduct::where('vendorID', $vendor->id)->count();
-        }
-    
-        $dashboard = $this->buildDashboardData($orders, $productCount, $currencyMeta);
-    
+
+        // Cache vendor lookup (5 minutes)
+        $vendor = \Illuminate\Support\Facades\Cache::remember('vendor_' . $firebaseId, 300, function () use ($firebaseId) {
+            return Vendor::where('author', $firebaseId)->select(['id', 'title', 'author'])->first();
+        });
+
+        // Cache currency meta (5 minutes)
+        $currencyMeta = \Illuminate\Support\Facades\Cache::remember('active_currency_meta', 300, function () {
+            $currency = Currency::where('isActive', true)->first();
+            return [
+                'symbol' => $currency->symbol ?? '₹',
+                'symbol_at_right' => (bool) ($currency->symbolAtRight ?? false),
+                'decimal_digits' => $currency->decimal_degits ?? 2,
+            ];
+        });
+
+        // Cache dashboard data (5 minutes) - only load recent orders for dashboard
+        $cacheKey = 'dashboard_' . ($vendor->id ?? 'none');
+        $dashboard = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($vendor, $currencyMeta) {
+            $orders = collect();
+            $productCount = 0;
+
+            if ($vendor) {
+                // Only fetch recent orders (last 100) instead of all orders for dashboard
+                $orders = RestaurantOrder::where('vendorID', $vendor->id)
+                    ->orderByDesc('createdAt')
+                    ->limit(100)
+                    ->select(['id', 'status', 'products', 'author', 'createdAt', 'discount', 'deliveryCharge', 'toPayAmount', 'ToPay', 'adminCommission', 'adminCommissionType', 'taxSetting', 'takeAway'])
+                    ->get();
+
+                // Cache product count separately (5 minutes)
+                $productCount = \Illuminate\Support\Facades\Cache::remember('product_count_' . $vendor->id, 300, function () use ($vendor) {
+                    return VendorProduct::where('vendorID', $vendor->id)->count();
+                });
+            }
+
+            return $this->buildDashboardData($orders, $productCount, $currencyMeta);
+        });
+
         return view('home', [
             'stats' => $dashboard['totals'],
             'statusCounts' => $dashboard['status_counts'],
@@ -68,7 +84,7 @@ class HomeController extends Controller
             'vendorExists' => (bool) $vendor,
         ]);
     }
-    
+
     /**
      * Show the application dashboard.
      *

@@ -6,6 +6,7 @@ use App\Models\Currency;
 use App\Models\RestaurantOrder;
 use App\Models\Setting;
 use App\Models\Vendor;
+use App\Models\VendorProduct;
 use Carbon\Carbon;
 use Google\Client as Google_Client;
 use Illuminate\Http\Request;
@@ -80,6 +81,9 @@ class OrderController extends Controller
             $order->notes = $data['notes'];
         }
         $order->save();
+
+        // Clear dashboard cache when order is updated
+        \Illuminate\Support\Facades\Cache::forget('dashboard_' . $vendor->id);
 
         return redirect()->route('orders.edit', $order->id)->with('success', 'Order updated successfully.');
     }
@@ -301,32 +305,81 @@ class OrderController extends Controller
     {
         $edit = route('orders.edit', $order->id);
         $print = route('vendors.orderprint', $order->id);
-        $delete = route('orders.destroy', $order->id);
+        // Delete button commented out
+        // $delete = route('orders.destroy', $order->id);
 
         return '<span class="action-btn">
             <a href="' . e($print) . '" target="_blank"><i class="fa fa-print" style="font-size:20px;"></i></a>
             <a href="' . e($edit) . '"><i class="fa fa-edit"></i></a>
-            <a href="javascript:void(0)" class="order-delete-btn" data-route="' . e($delete) . '" data-id="' . e($order->id) . '">
+            <!-- Delete button commented out -->
+            <!-- <a href="javascript:void(0)" class="order-delete-btn" data-route="' . e(route("orders.destroy", $order->id)) . '" data-id="' . e($order->id) . '">
                 <i class="fa fa-trash"></i>
-            </a>
+            </a> -->
         </span>';
     }
 
     protected function calculateSubtotal(RestaurantOrder $order): float
     {
+        // First try to use toPayAmount or ToPay if available (final total)
+        // These fields contain the complete order total including all charges
+        if (!empty($order->toPayAmount) && (float) $order->toPayAmount > 0) {
+            return (float) $order->toPayAmount;
+        }
+        if (!empty($order->ToPay) && (float) $order->ToPay > 0) {
+            return (float) $order->ToPay;
+        }
+
+        // Otherwise calculate from products
         $products = $this->decodeJson($order->products);
         $subtotal = 0;
 
-        foreach ($products as $product) {
-            $quantity = (int) ($product['quantity'] ?? 0);
-            $price = $product['discountPrice'] ?? $product['price'] ?? 0;
-            $extras = $product['extras_price'] ?? 0;
+        if (!empty($products) && is_array($products)) {
+            foreach ($products as $product) {
+                if (!is_array($product)) {
+                    continue;
+                }
+                $quantity = (int) ($product['quantity'] ?? 0);
+                $price = (float) ($product['discountPrice'] ?? $product['price'] ?? 0);
+                $extras = (float) ($product['extras_price'] ?? 0);
 
-            $lineTotal = ((float) $price * $quantity) + (float) $extras;
-            $subtotal += $lineTotal;
+                $lineTotal = ($price * $quantity) + $extras;
+                $subtotal += $lineTotal;
+            }
         }
 
-        return $subtotal;
+        // If we have products but subtotal is still 0, return 0
+        // Otherwise, calculate grand total with taxes, delivery, etc.
+        if ($subtotal > 0) {
+            $discount = (float) ($order->discount ?? 0);
+            $subtotal = max($subtotal - $discount, 0);
+
+            // Add taxes
+            $taxSetting = $this->decodeJson($order->taxSetting);
+            if (!empty($taxSetting) && is_array($taxSetting)) {
+                if ($this->isAssoc($taxSetting)) {
+                    $taxSetting = [$taxSetting];
+                }
+                foreach ($taxSetting as $tax) {
+                    if (empty($tax['enable']) || !is_array($tax)) {
+                        continue;
+                    }
+                    $type = strtolower($tax['type'] ?? 'percentage');
+                    $value = (float) ($tax['tax'] ?? 0);
+                    if ($type === 'percentage') {
+                        $subtotal += ($subtotal * $value / 100);
+                    } else {
+                        $subtotal += $value;
+                    }
+                }
+            }
+
+            // Add delivery and tip
+            $delivery = (float) ($order->deliveryCharge ?? 0);
+            $tip = (float) ($order->tip_amount ?? 0);
+            $subtotal += $delivery + $tip;
+        }
+
+        return max($subtotal, 0);
     }
 
     protected function customerName(RestaurantOrder $order): string
@@ -401,13 +454,7 @@ class OrderController extends Controller
             return $this->currencyMeta;
         }
 
-        $currency = Currency::where('isActive', true)->first();
-
-        return $this->currencyMeta = [
-            'symbol' => $currency->symbol ?? '₹',
-            'symbol_at_right' => (bool) ($currency->symbolAtRight ?? false),
-            'decimal_digits' => $currency->decimal_degits ?? 2,
-        ];
+        return $this->currencyMeta = $this->getCachedCurrency();
     }
 
     protected function normalizeStatuses($value): array
@@ -431,6 +478,17 @@ class OrderController extends Controller
         $address = $this->decodeJson($order->address);
         $driver = $this->decodeJson($order->driver);
         $vendorData = $this->decodeJson($order->vendor);
+
+        // Add vendorID to products array for easier lookup in mapProducts
+        if (!empty($products) && is_array($products)) {
+            foreach ($products as &$product) {
+                if (!isset($product['vendorID']) && !empty($order->vendorID)) {
+                    $product['vendorID'] = $order->vendorID;
+                }
+            }
+            unset($product); // Unset reference
+        }
+
         if (empty($vendorData) || !isset($vendorData['title'])) {
             $vendorRecord = Vendor::find($order->vendorID);
             if ($vendorRecord) {
@@ -448,7 +506,11 @@ class OrderController extends Controller
         $taxSetting = $this->decodeJson($order->taxSetting);
         $specialDiscount = $this->decodeJson($order->specialDiscount);
 
-        $summary = $this->calculateTotals($order, $products, $taxSetting, $specialDiscount, $currency);
+        // Map products first to get correct prices from vendor_products
+        $mappedProducts = $this->mapProducts($products, $currency);
+
+        // Calculate totals based on mapped products (with correct prices)
+        $summary = $this->calculateTotalsFromMappedProducts($order, $mappedProducts, $taxSetting, $specialDiscount, $currency);
 
         return [
             'customer' => [
@@ -459,7 +521,7 @@ class OrderController extends Controller
             'address' => $address,
             'driver' => $driver,
             'vendor' => $vendorData,
-            'products' => $this->mapProducts($products, $currency),
+            'products' => $mappedProducts,
             'summary' => $summary,
             'order_type' => $this->formatOrderType($order->takeAway),
             'created_at' => $this->formatDate($order->createdAt),
@@ -480,23 +542,143 @@ class OrderController extends Controller
     {
         $placeholder = $this->placeholderImage();
 
-        return array_map(function ($product) use ($currency, $placeholder) {
+        if (empty($products) || !is_array($products)) {
+            return [];
+        }
+
+        // Get vendor ID from first product if available
+        $vendorId = $products[0]['vendorID'] ?? null;
+
+        // Collect all product IDs and names for batch lookup
+        $productIds = [];
+        $productNames = [];
+        foreach ($products as $product) {
+            $productId = $product['id'] ?? $product['productID'] ?? null;
+            $productName = $product['name'] ?? null;
+            if ($productId) {
+                $productIds[] = $productId;
+            }
+            if ($productName && $vendorId) {
+                $productNames[] = $productName;
+            }
+        }
+
+        // Fetch all vendor products at once (optimize database queries)
+        $vendorProductsById = [];
+        $vendorProductsByName = [];
+
+        if (!empty($productIds)) {
+            $vendorProductsById = VendorProduct::whereIn('id', array_unique($productIds))
+                ->get()
+                ->keyBy('id')
+                ->toArray();
+        }
+
+        if (!empty($productNames) && $vendorId) {
+            $vendorProductsByName = VendorProduct::where('vendorID', $vendorId)
+                ->whereIn('name', array_unique($productNames))
+                ->get()
+                ->keyBy('name')
+                ->toArray();
+        }
+
+        return array_map(function ($product) use ($currency, $placeholder, $vendorProductsById, $vendorProductsByName) {
             $quantity = (int) ($product['quantity'] ?? 0);
-            $price = (float) ($product['discountPrice'] ?? $product['price'] ?? 0);
             $extrasPrice = (float) ($product['extras_price'] ?? 0);
+
+            // Try to fetch price from vendor_products table
+            $price = 0;
+            $productId = $product['id'] ?? $product['productID'] ?? null;
+            $productName = $product['name'] ?? null;
+            $vendorProduct = null;
+
+            // First try by ID
+            if ($productId && isset($vendorProductsById[$productId])) {
+                $vendorProduct = $vendorProductsById[$productId];
+            }
+
+            // If not found by ID, try by name
+            if (!$vendorProduct && $productName && isset($vendorProductsByName[$productName])) {
+                $vendorProduct = $vendorProductsByName[$productName];
+            }
+
+            // Get price from vendor product
+            if ($vendorProduct) {
+                // Use price from vendor_products table
+                $price = (float) ($vendorProduct['price'] ?? 0);
+            }
+
+            // Fallback to order's stored price if vendor product not found
+            if ($price == 0) {
+                $price = (float) ($product['discountPrice'] ?? $product['price'] ?? 0);
+            }
+
             $lineTotal = ($price * $quantity) + $extrasPrice;
+
+            // Get photo from vendor product if available
+            $photo = $placeholder;
+            if ($vendorProduct && !empty($vendorProduct['photo'])) {
+                $photo = $vendorProduct['photo'];
+            } elseif (!empty($product['photo'])) {
+                $photo = $product['photo'];
+            }
 
             return [
                 'name' => $product['name'] ?? 'Item',
-                'photo' => $product['photo'] ?? $placeholder,
+                'photo' => $photo,
                 'price' => $this->formatCurrency($price, $currency),
+                'price_raw' => $price, // Store raw price for calculations
                 'quantity' => $quantity,
                 'extras_price' => $this->formatCurrency($extrasPrice, $currency),
+                'extras_price_raw' => $extrasPrice, // Store raw extras price for calculations
                 'total' => $this->formatCurrency($lineTotal, $currency),
+                'total_raw' => $lineTotal, // Store raw total for calculations
                 'extras' => $product['extras'] ?? [],
-                'variant' => $product['variant_info']['variant_options'] ?? [],
+                'variant' => $product['variant_info']['variant_options'] ?? $product['variant'] ?? [],
             ];
         }, $products);
+    }
+
+    protected function calculateTotalsFromMappedProducts(RestaurantOrder $order, array $mappedProducts, array $taxSetting, array $specialDiscount, array $currency): array
+    {
+        $itemsTotal = 0;
+        $addonTotal = 0;
+
+        // Calculate from mapped products which already have correct prices from vendor_products
+        foreach ($mappedProducts as $product) {
+            // Use raw numeric values stored in mapped products
+            $price = (float) ($product['price_raw'] ?? 0);
+            $extras = (float) ($product['extras_price_raw'] ?? 0);
+            $quantity = (int) ($product['quantity'] ?? 0);
+
+            $itemsTotal += $price * $quantity;
+            $addonTotal += $extras;
+        }
+
+        $subtotal = $itemsTotal + $addonTotal;
+        $discount = (float) ($order->discount ?? 0);
+        $special = (float) ($specialDiscount['special_discount'] ?? 0);
+        $afterDiscount = max($subtotal - $discount - $special, 0);
+
+        $taxes = $this->calculateTaxes($taxSetting, $afterDiscount, $currency);
+        $delivery = (float) ($order->deliveryCharge ?? 0);
+        $tip = (float) ($order->tip_amount ?? 0);
+
+        $total = $afterDiscount + $taxes['total_raw'] + $delivery + $tip;
+
+        return [
+            'items_total' => $this->formatCurrency($itemsTotal, $currency),
+            'addons_total' => $this->formatCurrency($addonTotal, $currency),
+            'subtotal' => $this->formatCurrency($subtotal, $currency),
+            'discount' => $this->formatCurrency($discount, $currency),
+            'special_discount' => $this->formatCurrency($special, $currency),
+            'after_discount' => $this->formatCurrency($afterDiscount, $currency),
+            'taxes' => $taxes['items'],
+            'tax_total' => $this->formatCurrency($taxes['total_raw'], $currency),
+            'delivery' => $this->formatCurrency($delivery, $currency),
+            'tip' => $this->formatCurrency($tip, $currency),
+            'grand_total' => $this->formatCurrency($total, $currency),
+        ];
     }
 
     protected function calculateTotals(RestaurantOrder $order, array $products, array $taxSetting, array $specialDiscount, array $currency): array
@@ -720,22 +902,7 @@ class OrderController extends Controller
 
     protected function currentVendor(): Vendor
     {
-        $user = Auth::user();
-
-        if ($user && $user->vendorID) {
-            $vendor = Vendor::where('id', $user->vendorID)->first();
-            if ($vendor) {
-                return $vendor;
-            }
-        }
-
-        $vendor = Vendor::where('author', Auth::id())->first();
-
-        if (!$vendor) {
-            abort(403, 'Vendor profile not found.');
-        }
-
-        return $vendor;
+        return $this->getCachedVendor();
     }
 
     protected function isAssoc(array $array): bool
@@ -745,27 +912,30 @@ class OrderController extends Controller
 
     protected function getAvailableDrivers(): array
     {
-        try {
-            $drivers = \App\Models\User::where('role', 'driver')
-                ->orWhere('role', 'Driver')
-                ->where('isEnabled', true)
-                ->select('id', 'firstName', 'lastName', 'phoneNumber', 'email')
-                ->get()
-                ->map(function ($driver) {
-                    return [
-                        'id' => $driver->id,
-                        'firstName' => $driver->firstName ?? '',
-                        'lastName' => $driver->lastName ?? '',
-                        'phoneNumber' => $driver->phoneNumber ?? '',
-                        'email' => $driver->email ?? '',
-                    ];
-                })
-                ->toArray();
+        // Cache drivers list for 5 minutes
+        return \Illuminate\Support\Facades\Cache::remember('available_drivers', 300, function () {
+            try {
+                $drivers = \App\Models\User::where('role', 'driver')
+                    ->orWhere('role', 'Driver')
+                    ->where('isEnabled', true)
+                    ->select('id', 'firstName', 'lastName', 'phoneNumber', 'email')
+                    ->get()
+                    ->map(function ($driver) {
+                        return [
+                            'id' => $driver->id,
+                            'firstName' => $driver->firstName ?? '',
+                            'lastName' => $driver->lastName ?? '',
+                            'phoneNumber' => $driver->phoneNumber ?? '',
+                            'email' => $driver->email ?? '',
+                        ];
+                    })
+                    ->toArray();
 
-            return $drivers;
-        } catch (\Exception $e) {
-            return [];
-        }
+                return $drivers;
+            } catch (\Exception $e) {
+                return [];
+            }
+        });
     }
     public function getLatestOrderForVendor($vendorID)
     {

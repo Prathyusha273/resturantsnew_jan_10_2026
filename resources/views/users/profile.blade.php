@@ -18,7 +18,7 @@ foreach ($countries as $keycountry => $valuecountry) {
             </div>
             <div class="col-md-7 align-self-center">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{!! route('dashboard') !!}">{{trans('lang.dashboard')}}</a>
+                    <li class="breadcrumb-item"><a href="{!! route('home') !!}">{{trans('lang.dashboard')}}</a>
                     </li>
                     <li class="breadcrumb-item active">{{trans('lang.user_profile_edit')}}</li>
                 </ol>
@@ -165,7 +165,7 @@ foreach ($countries as $keycountry => $valuecountry) {
             <div class="form-group col-12 text-center btm-btn">
                 <button type="button" class="btn btn-primary  save_restaurant_btn"><i
                             class="fa fa-save"></i> {{trans('lang.save')}}</button>
-                <a href="{!! route('dashboard') !!}" class="btn btn-default"><i
+                <a href="{!! route('home') !!}" class="btn btn-default"><i
                             class="fa fa-undo"></i>{{trans('lang.cancel')}}</a>
             </div>
         </div>

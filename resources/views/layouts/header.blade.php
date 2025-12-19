@@ -22,7 +22,7 @@
 
     </ul>
 
-    
+
 
      <div style="visibility: hidden;" class="language-list icon d-flex align-items-center text-light ml-2" id="language_dropdown_box">
 
@@ -36,7 +36,7 @@
 
             <select class="form-control changeLang text-dark" id="language_dropdown">
 
-                
+
 
             </select>
 
@@ -46,7 +46,7 @@
 
     <ul class="navbar-nav my-lg-0">
 
-       
+
 
         <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle text-muted waves-effect waves-dark" href="#" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -73,17 +73,16 @@
 
                     <li role="separator" class="divider"></li>
 
-                    <li><a href="{{ route('logout') }}"
+                    <li>
+                        <a href="#"
+                           onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                            <i class="fa fa-power-off"></i> {{ __('Logout') }}
+                        </a>
 
-                               onclick="event.preventDefault();
-
-                                             document.getElementById('logout-form').submit();"><i class="fa fa-power-off"></i> {{ __('Logout') }}</a></li>
-
-                        <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
-
-                        @csrf
-
+                        <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">
+                            @csrf
                         </form>
+                    </li>
 
                 </ul>
 

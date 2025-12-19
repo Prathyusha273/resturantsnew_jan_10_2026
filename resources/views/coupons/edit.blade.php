@@ -8,7 +8,7 @@
         </div>
         <div class="col-md-7 align-self-center">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">{{ trans('lang.dashboard') }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('home') }}">{{ trans('lang.dashboard') }}</a></li>
                 <li class="breadcrumb-item"><a href="{{ route('coupons') }}">{{ trans('lang.coupon_plural') }}</a></li>
                 <li class="breadcrumb-item active">{{ trans('lang.coupon_edit') }}</li>
             </ol>

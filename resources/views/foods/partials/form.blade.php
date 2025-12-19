@@ -3,18 +3,6 @@
     $selectedCategory = old('categoryID', $food->categoryID ?? '');
     $existingPhoto = $food->photo ?? null;
     $placeholderImage = $placeholderImage ?? asset('assets/images/placeholder.png');
-    $extraPhotos = $extraPhotos ?? [];
-    // Normalize extraPhotos to ensure it's a flat array of strings
-    $normalizedExtraPhotos = [];
-    if (!empty($extraPhotos)) {
-        array_walk_recursive($extraPhotos, function ($value) use (&$normalizedExtraPhotos) {
-            if (is_string($value) && !empty(trim($value))) {
-                $normalizedExtraPhotos[] = $value;
-            }
-        });
-    }
-    $extraPhotos = $normalizedExtraPhotos;
-    $keepPhotosOld = old('keep_photos', $extraPhotos);
 
     $oldAddOnTitles = old('add_ons_title', []);
     $oldAddOnPrices = old('add_ons_price', []);
@@ -25,11 +13,11 @@
         for ($i = 0; $i < $count; $i++) {
             $title = $oldAddOnTitles[$i] ?? '';
             $price = $oldAddOnPrices[$i] ?? '';
-            
+
             // Ensure both are strings
             $title = is_array($title) ? '' : (string) $title;
             $price = is_array($price) ? '' : (string) $price;
-            
+
             $addOnRows[] = [
                 'title' => $title,
                 'price' => $price,
@@ -59,11 +47,11 @@
         for ($i = 0; $i < $count; $i++) {
             $label = $oldSpecLabels[$i] ?? '';
             $value = $oldSpecValues[$i] ?? '';
-            
+
             // Ensure both are strings
             $label = is_array($label) ? '' : (string) $label;
             $value = is_array($value) ? '' : (string) $value;
-            
+
             if ($label === '' && $value === '') {
                 continue;
             }
@@ -82,19 +70,12 @@
             } elseif (is_string($value) || is_numeric($value) || is_bool($value)) {
                 $stringValue = (string) $value;
             }
-            
+
             $specRows[] = ['label' => (string) $label, 'value' => $stringValue];
         }
     }
 
     $galleryTextarea = old('gallery_urls');
-    if ($galleryTextarea === null && !empty($extraPhotos)) {
-        // Filter out the primary photo
-        $nonPrimary = array_filter($extraPhotos, function ($photo) use ($existingPhoto) {
-            return $photo !== $existingPhoto;
-        });
-        $galleryTextarea = !empty($nonPrimary) ? implode(PHP_EOL, $nonPrimary) : '';
-    }
 @endphp
 
 @if ($errors->any())
@@ -118,53 +99,55 @@
     <div class="col-md-3">
         <div class="form-group">
             <label class="control-label font-weight-bold">Price <span class="text-danger">*</span></label>
-            <input type="number" step="0.01" name="price" class="form-control" value="{{ old('price', $food->price ?? '') }}" required>
+            <input type="number" step="1" name="price" class="form-control" value="{{ old('price', $food->price ?? '') }}" required>
         </div>
     </div>
     <div class="col-md-3">
         <div class="form-group">
             <label class="control-label font-weight-bold">Discount Price</label>
-            <input type="number" step="0.01" name="disPrice" class="form-control" value="{{ old('disPrice', $food->disPrice ?? '') }}">
+            <input type="number" step="1" name="disPrice" class="form-control" value="{{ old('disPrice', $food->disPrice ?? '') }}">
         </div>
     </div>
 </div>
 
-    <div class="row">
-        <div class="col-md-6">
-            <div class="form-group">
-                <label class="control-label font-weight-bold">
-                    {{ trans('lang.food_category_id') }} <span class="text-danger">*</span>
-                </label>
+<div class="row">
+    <div class="col-md-6">
+        <div class="form-group">
+            <label class="control-label font-weight-bold">
+                {{ trans('lang.food_category_id') }} <span class="text-danger">*</span>
+            </label>
 
-                <!-- Selected categories display -->
-                <div id="selected_categories" class="mb-2"></div>
+            <!-- Selected categories display -->
+            <div id="selected_categories" class="mb-2"></div>
 
-                <!-- Search box -->
-                <input type="text"
-                       id="food_category_search"
-                       class="form-control mb-2"
-                       placeholder="Search categories...">
+            <!-- Search box -->
+            <input type="text"
+                   id="food_category_search"
+                   class="form-control mb-2"
+                   placeholder="Search categories...">
 
-                <!-- Multi-select -->
-                <select id="food_category"
-                        name="categoryID"
-                        class="form-control"
-                        multiple
-                        required>
-                    <option value="">Select categories</option>
-                    @foreach ($categories as $category)
-                        <option value="{{ $category->id }}" {{ $selectedCategory === $category->id ? 'selected' : '' }}>
-                            {{ $category->title }}
-                        </option>
-                    @endforeach
-                </select>
-                <small class="form-text text-muted">
-                    {{ trans('lang.food_category_id_help') }}
-                </small>
-            </div>
+            <!-- Multi-select -->
+            <select id="food_category"
+                    {{--                        name="food_category[]"--}}
+                    name="categoryID"
+                    class="form-control"
+                    multiple
+                    required>
+                <option value="">Select categories</option>
+                @foreach ($categories as $category)
+                    <option value="{{ $category->id }}" {{ $selectedCategory === $category->id ? 'selected' : '' }}>
+                        {{ $category->title }}
+                    </option>
+                @endforeach
+            </select>
+            <small class="form-text text-muted">
+                {{ trans('lang.food_category_id_help') }}
+            </small>
         </div>
     </div>
+</div>
 
+<div class="row">
     <div class="col-md-3">
         <div class="form-group">
             <label class="control-label font-weight-bold">Quantity</label>
@@ -193,17 +176,17 @@
 
 <div class="form-group">
     <div class="col-md-6">
-    <label class="control-label font-weight-bold">Description <span class="text-danger">*</span></label>
-    <textarea name="description" rows="4" class="form-control" required>{{ old('description', $food->description ?? '') }}</textarea>
+        <label class="control-label font-weight-bold">Description <span class="text-danger">*</span></label>
+        <textarea name="description" rows="4" class="form-control" required>{{ old('description', $food->description ?? '') }}</textarea>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
+<div class="mt-4 border border 4px solid p-4">
+    <div class="col-md-4">
         <div class="form-group">
             <label class="control-label font-weight-bold">Image</label>
-            <input type="file" name="photo_upload" class="form-control-file">
-            <small class="form-text text-muted">Recommended size 800x600px.</small>
+            <input type="file" name="photo_upload" class="form-control-file" accept="image/jpeg,image/jpg,image/webp,image/png,image/jfif,image/avif">
+            <small class="form-text text-muted">Recommended size 800x600px. Only JPG, JPEG, WEBP, PNG, JFIF, and AVIF formats allowed.</small>
         </div>
     </div>
     <div class="col-md-6">
@@ -215,7 +198,7 @@
     </div>
 </div>
 
-<div class="mb-3">
+<div class="mt-4 border border 4px solid p-4">
     <label class="control-label font-weight-bold d-block">Current Image</label>
     <img src="{{ $existingPhoto ?: $placeholderImage }}" alt="Current photo" class="rounded shadow" style="width: 160px; height: 120px; object-fit: cover;">
     @if ($editing && $existingPhoto)
@@ -228,31 +211,13 @@
     @endif
 </div>
 
-@if (!empty($extraPhotos))
-    <div class="form-group">
-        <label class="control-label font-weight-bold">Existing Gallery Photos</label>
-        <div class="row">
-            @foreach ($extraPhotos as $index => $photoUrl)
-                <div class="col-md-3 col-6 mb-3 text-center">
-                    <div class="border rounded p-2">
-                        <img src="{{ $photoUrl }}" alt="Gallery Photo" class="img-fluid mb-2" style="height: 90px; object-fit: cover;">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="keep_photos[]" value="{{ $photoUrl }}" id="keepPhoto{{ $index }}" {{ in_array($photoUrl, (array) $keepPhotosOld, true) ? 'checked' : '' }}>
-                            <label class="form-check-label small" for="keepPhoto{{ $index }}">Keep Photo</label>
-                        </div>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    </div>
-@endif
 
 <div class="row" style="display: none">
     <div class="col-md-6">
         <div class="form-group">
             <label class="control-label font-weight-bold">Gallery Uploads</label>
-            <input type="file" name="gallery_uploads[]" class="form-control-file" multiple>
-            <small class="form-text text-muted">You can upload multiple images at once.</small>
+            <input type="file" name="gallery_uploads[]" class="form-control-file" multiple accept="image/jpeg,image/jpg,image/webp">
+            <small class="form-text text-muted">You can upload multiple images at once. Only JPG, JPEG, and WEBP formats allowed.</small>
         </div>
     </div>
     <div class="col-md-6">

@@ -8,7 +8,7 @@
             </div>
         <div class="col-md-6 align-self-center">
                 <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('home') }}">Dashboard</a></li>
                 <li class="breadcrumb-item"><a href="{{ route('foods') }}">Foods</a></li>
                 <li class="breadcrumb-item active">{{ $food->name }}</li>
                 </ol>
@@ -30,7 +30,6 @@
                     @include('foods.partials.form', [
                         'food' => $food,
                         'categories' => $categories,
-                        'extraPhotos' => $extraPhotos ?? [],
                         'addOns' => $addOns ?? [],
                         'specifications' => $specifications ?? [],
                         'placeholderImage' => $placeholderImage

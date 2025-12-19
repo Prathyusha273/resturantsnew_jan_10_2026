@@ -8,7 +8,7 @@
             </div>
         <div class="col-md-6 align-self-center text-right">
                 <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('home') }}">Dashboard</a></li>
                 <li class="breadcrumb-item active">Foods</li>
                 </ol>
             </div>
@@ -52,24 +52,24 @@
                     </div>
                 @endif
 
-                <div class="d-md-flex justify-content-between align-items-center mb-4">
-                    <form method="GET" action="{{ route('foods') }}" class="form-inline flex-grow-1 mr-md-3 mb-3 mb-md-0">
-                        <div class="form-row w-100">
-                            <div class="col-md-6 mb-2 mb-md-0">
-                                <select name="category" class="form-control w-100">
-                                    <option value="">All categories</option>
-                                    @foreach ($categories as $category)
-                                        <option value="{{ $category->id }}" {{ request('category') == $category->id ? 'selected' : '' }}>
-                                            {{ $category->title }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-3 text-left text-md-right">
-                                <button type="submit" class="btn btn-primary btn-block">
-                                    <i class="fa fa-filter mr-1"></i> Filter
-                                </button>
-            </div>
+{{--                <div class="d-md-flex justify-content-between align-items-center mb-4">--}}
+{{--                    <form method="GET" action="{{ route('foods') }}" class="form-inline flex-grow-1 mr-md-3 mb-3 mb-md-0">--}}
+{{--                        <div class="form-row w-100">--}}
+{{--                            <div class="col-md-6 mb-2 mb-md-0">--}}
+{{--                                <select name="category" class="form-control w-100">--}}
+{{--                                    <option value="">All categories</option>--}}
+{{--                                    @foreach ($categories as $category)--}}
+{{--                                        <option value="{{ $category->id }}" {{ request('category') == $category->id ? 'selected' : '' }}>--}}
+{{--                                            {{ $category->title }}--}}
+{{--                                        </option>--}}
+{{--                                    @endforeach--}}
+{{--                                </select>--}}
+{{--                            </div>--}}
+{{--                            <div class="col-md-3 text-left text-md-right">--}}
+{{--                                <button type="submit" class="btn btn-primary btn-block">--}}
+{{--                                    <i class="fa fa-filter mr-1"></i> Filter--}}
+{{--                                </button>--}}
+{{--                        </div>--}}
         </div>
                         @if(request()->has('category'))
                             <div class="mt-2">
@@ -112,9 +112,6 @@
                         </thead>
                         <tbody>
                             @forelse ($foods as $food)
-                                @php
-                                    $updatedAt = $food->updatedAt ? \Carbon\Carbon::parse($food->updatedAt)->format('M d, Y H:i') : '—';
-                                @endphp
                                 <tr>
                                     <td class="delete-all">
                                         <input type="checkbox"
@@ -152,14 +149,38 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <form method="POST" action="{{ route('foods.publish', $food->id) }}" class="d-inline publish-form">
-                                            @csrf
-                                            @method('PATCH')
-                                            <input type="hidden" name="publish" value="{{ $food->publish ? 0 : 1 }}">
-                                            <button type="submit" class="btn btn-sm {{ $food->publish ? 'btn-success' : 'btn-outline-secondary' }}">
-                                                {{ $food->publish ? 'Published' : 'Hidden' }}
-                                            </button>
-                                        </form>
+                                        <label
+                                            class="food-toggle"
+                                            data-id="{{ $food->id }}"
+                                            style="
+            position: relative;
+            display: inline-block;
+            width: 45px;
+            height: 22px;
+            cursor: pointer;
+        "
+                                        >
+        <span class="toggle-bg"
+              style="
+                position:absolute; top:0; left:0; right:0; bottom:0;
+                background: {{ $food->publish ? 'green' : 'red' }};
+                border-radius: 30px;
+                transition: .3s;
+            "
+        >
+            <span class="toggle-ball"
+                  style="
+                    position:absolute;
+                    height:18px; width:18px;
+                    left:2px; bottom:2px;
+                    background:white;
+                    border-radius:50%;
+                    transition:.3s;
+                    transform: translateX({{ $food->publish ? '23px' : '0px' }});
+                "
+            ></span>
+        </span>
+                                        </label>
                                     </td>
                                     <td>
                                         <form method="POST" action="{{ route('foods.availability', $food->id) }}" class="d-inline availability-form">
@@ -171,7 +192,7 @@
                                             </button>
                                         </form>
                                     </td>
-                                    <td>{{ $updatedAt }}</td>
+                                    <td>{{ $food->formattedUpdatedAt }}</td>
                                     <td class="text-right">
                                         <a href="{{ route('foods.edit', $food->id) }}" class="btn btn-sm btn-outline-info">
                                             <i class="fa fa-edit"></i>
@@ -371,6 +392,38 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
+    $(document).on("click", ".food-toggle", function () {
+        let id = $(this).data('id');
+        let toggle = $(this);
+        let bg = toggle.find(".toggle-bg");
+        let ball = toggle.find(".toggle-ball");
+
+        $.ajax({
+            url: '{{ route("foods.publish", ":id") }}'.replace(':id', id),
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}'
+            },
+            success: function(response) {
+                if (response.success) {
+
+                    // Update UI instantly
+                    if (response.publish) {
+                        bg.css("background", "green");
+                        ball.css("transform", "translateX(23px)");
+                    } else {
+                        bg.css("background", "red");
+                        ball.css("transform", "translateX(0px)");
+                    }
+
+                    console.log("Updated successfully");
+                }
+            },
+            error: function(xhr) {
+                console.error("Toggle update failed");
+            }
+        });
+    });
 
     document.querySelectorAll('.editable-price').forEach(attachInlineEditor);
         });

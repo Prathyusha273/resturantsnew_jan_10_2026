@@ -118,9 +118,41 @@ Route::prefix('api/security')->middleware(['throttle:60,1'])->group(function () 
     Route::get('/audit-logs/{id}', [App\Http\Controllers\ImpersonationMonitoringController::class, 'getSecurityEvent'])->name('security.audit-event');
 });
 
-//Auth::routes();
-Auth::routes(['verify' => false]);
-// Enhanced authentication routes with rate limiting
+// CSRF Token Refresh Route (for preventing 419 errors)
+Route::get('/csrf-token', function() {
+    return response()->json([
+        'token' => csrf_token()
+    ]);
+})->middleware('web');
+
+// ============================================
+// Authentication Routes (Replacing Auth::routes())
+// ============================================
+// Auth::routes(['verify' => false]) registers these routes:
+// - GET  /login  -> showLoginForm()
+// - POST /login  -> login()
+// - POST /logout -> logout()
+// - GET  /register -> showRegistrationForm() (if enabled)
+// - POST /register -> register() (if enabled)
+//
+// We're defining them explicitly for better control and customization
+
+// Login Routes
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login'])->name('login.post');
+
+// Logout Route
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+// Registration Route (redirects to signup for backward compatibility)
+// Note: Your app uses SignupController, but some views reference route('register')
+Route::get('/register', function() {
+    return redirect()->route('signup');
+})->name('register');
+
+// Note: Registration is handled by SignupController (see routes below)
+// Note: Password reset routes are defined separately below
+// Note: Email verification is disabled (verify => false)
 
 
 // Show send link page
@@ -130,9 +162,9 @@ Route::get('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordControll
 //// Send reset link
 //Route::post('forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail']);
 //
-//Route::post('password/email', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])
-//    ->middleware('throttle.login:3,1')
-//    ->name('password.email');
+Route::post('password/email', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])
+    ->middleware('throttle.login:3,1')
+    ->name('password.email');
 Route::get('password/reset/{token}', [App\Http\Controllers\Auth\ResetPasswordController::class, 'showResetForm'])->name('password.reset');
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])
     ->middleware('throttle.login:3,1')
@@ -160,7 +192,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
 });
 
 // Passwordless authentication routes
-Route::get('passwordless/login', [App\Http\Controllers\Auth\PasswordlessController::class, 'showLoginForm'])->name('passwordless.login');
+//Route::get('passwordless/login', [App\Http\Controllers\Auth\PasswordlessController::class, 'showLoginForm'])->name('passwordless.login');
 Route::post('passwordless/send', [App\Http\Controllers\Auth\PasswordlessController::class, 'sendMagicLink'])
     ->middleware('throttle.login:3,1')
     ->name('passwordless.send');
@@ -192,7 +224,7 @@ Route::middleware(['check.subscription'])->group(function () {
 
     Route::get('my-subscription/show/{id}', [App\Http\Controllers\MySubscriptionsController::class, 'show'])->name('my-subscription.show');
 
-    Route::get('/dashboard', [App\Http\Controllers\HomeController::class, 'index'])->name('dashboard');
+//    Route::get('/dashboard', [App\Http\Controllers\HomeController::class, 'index'])->name('dashboard');
 
     Route::get('my-subscriptions', [App\Http\Controllers\MySubscriptionsController::class, 'index'])->name('my-subscriptions');
 
@@ -203,7 +235,7 @@ Route::middleware(['check.subscription'])->group(function () {
     Route::get('/restaurant', [RestaurantProfileController::class, 'show'])->name('restaurant');
     Route::post('/restaurant', [RestaurantProfileController::class, 'update'])->name('restaurant.update');
 
-    Route::patch('/foods/{id}/publish', [App\Http\Controllers\FoodController::class, 'togglePublish'])->name('foods.publish');
+    Route::post('/foods/{id}/publish', [App\Http\Controllers\FoodController::class, 'togglePublish'])->name('foods.publish');
     Route::patch('/foods/{id}/availability', [App\Http\Controllers\FoodController::class, 'toggleAvailability'])->name('foods.availability');
     Route::get('/foods', [App\Http\Controllers\FoodController::class, 'index'])->name('foods');
     Route::get('/foods/create', [App\Http\Controllers\FoodController::class, 'create'])->name('foods.create');

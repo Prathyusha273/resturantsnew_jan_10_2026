@@ -7,7 +7,7 @@
             </div>
             <div class="col-md-7 align-self-center">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{url('/dashboard')}}">{{trans('lang.dashboard')}}</a></li>
+                    <li class="breadcrumb-item"><a href="{{url('/')}}">{{trans('lang.dashboard')}}</a></li>
                     <li class="breadcrumb-item active">{{trans('lang.order_plural')}}</li>
                 </ol>
             </div>
@@ -25,10 +25,11 @@
                                        cellspacing="0" width="100%">
                                     <thead>
                                     <tr>
-                                        <th class="delete-all"><input type="checkbox" id="is_active"><label
+                                        {{-- Delete button commented out --}}
+                                        {{-- <th class="delete-all"><input type="checkbox" id="is_active"><label
                                                     class="col-3 control-label" for="is_active">
                                                 <a id="deleteAll" class="do_not_delete" href="javascript:void(0)">
-                                                    <i class="fa fa-trash"></i> {{trans('lang.all')}}</a></label></th>
+                                                    <i class="fa fa-trash"></i> {{trans('lang.all')}}</a></label></th> --}}
                                         <th>{{trans('lang.order_id')}}</th>
                                         <th>{{trans('lang.order_user_id')}}</th>
                                         <th class="driverClass">{{trans('lang.driver_plural')}}</th>
@@ -41,14 +42,15 @@
                                     </thead>
                                     <tbody></tbody>
                                 </table>
-                                <form id="order-delete-form" method="POST" class="d-none">
+                                {{-- Delete forms commented out --}}
+                                {{-- <form id="order-delete-form" method="POST" class="d-none">
                                     @csrf
                                     @method('DELETE')
                                 </form>
                                 <form id="order-bulk-delete-form" method="POST" action="{{ route('orders.bulkDestroy') }}" class="d-none">
                                     @csrf
                                     @method('DELETE')
-                                </form>
+                                </form> --}}
                             </div>
                         </div>
                     </div>
@@ -61,10 +63,11 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const statusFilter = @json($statusQuery ?? '');
-    const bulkDeleteForm = document.getElementById('order-bulk-delete-form');
-    const deleteForm = document.getElementById('order-delete-form');
-    const selectAll = document.getElementById('is_active');
-    const deleteAllBtn = document.getElementById('deleteAll');
+    // Delete functionality commented out
+    // const bulkDeleteForm = document.getElementById('order-bulk-delete-form');
+    // const deleteForm = document.getElementById('order-delete-form');
+    // const selectAll = document.getElementById('is_active');
+    // const deleteAllBtn = document.getElementById('deleteAll');
 
     const ordersTable = $('#orderTable').DataTable({
         processing: true,
@@ -78,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         },
         columns: [
-            { data: 'select', orderable: false, searchable: false },
+            // { data: 'select', orderable: false, searchable: false }, // Commented out - delete checkbox column
             { data: 'id' },
             { data: 'customer' },
             { data: 'driver' },
@@ -95,78 +98,81 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    function updateBulkControls() {
-        const checkboxes = Array.from(document.querySelectorAll('#orderTable .is_open'));
-        const checked = checkboxes.filter(cb => cb.checked);
+    // Delete functionality commented out
+    // function updateBulkControls() {
+    //     const checkboxes = Array.from(document.querySelectorAll('#orderTable .is_open'));
+    //     const checked = checkboxes.filter(cb => cb.checked);
 
-        if (selectAll) {
-            if (!checkboxes.length) {
-                selectAll.checked = false;
-                selectAll.indeterminate = false;
-            } else {
-                selectAll.checked = checked.length === checkboxes.length && checked.length > 0;
-                selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
-            }
-        }
+    //     if (selectAll) {
+    //         if (!checkboxes.length) {
+    //             selectAll.checked = false;
+    //             selectAll.indeterminate = false;
+    //         } else {
+    //             selectAll.checked = checked.length === checkboxes.length && checked.length > 0;
+    //             selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+    //         }
+    //     }
 
-        if (deleteAllBtn) {
-            deleteAllBtn.classList.toggle('disabled', checked.length === 0);
-        }
-    }
+    //     if (deleteAllBtn) {
+    //         deleteAllBtn.classList.toggle('disabled', checked.length === 0);
+    //     }
+    // }
 
-    ordersTable.on('draw', function () {
-        updateBulkControls();
-    });
+    // ordersTable.on('draw', function () {
+    //     updateBulkControls();
+    // });
 
-    if (selectAll) {
-        selectAll.addEventListener('change', function () {
-            document.querySelectorAll('#orderTable .is_open').forEach(cb => {
-                cb.checked = selectAll.checked;
-            });
-            updateBulkControls();
-        });
-    }
+    // if (selectAll) {
+    //     selectAll.addEventListener('change', function () {
+    //         document.querySelectorAll('#orderTable .is_open').forEach(cb => {
+    //             cb.checked = selectAll.checked;
+    //         });
+    //         updateBulkControls();
+    //     });
+    // }
 
-    document.addEventListener('change', function (event) {
-        if (event.target.classList.contains('is_open')) {
-            updateBulkControls();
-        }
-    });
+    // document.addEventListener('change', function (event) {
+    //     if (event.target.classList.contains('is_open')) {
+    //         updateBulkControls();
+    //     }
+    // });
 
-    if (deleteAllBtn && bulkDeleteForm) {
-        deleteAllBtn.addEventListener('click', function (event) {
-            event.preventDefault();
-            if (deleteAllBtn.classList.contains('disabled')) {
-                return;
-            }
-            const selected = Array.from(document.querySelectorAll('#orderTable .is_open:checked'));
-            if (!selected.length || !confirm('Delete selected orders?')) {
-                return;
-            }
-            bulkDeleteForm.querySelectorAll('input[name="ids[]"]').forEach(el => el.remove());
-            selected.forEach(cb => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'ids[]';
-                input.value = cb.value;
-                bulkDeleteForm.appendChild(input);
-            });
-            bulkDeleteForm.submit();
-        });
-    }
+    // Bulk delete functionality commented out
+    // if (deleteAllBtn && bulkDeleteForm) {
+    //     deleteAllBtn.addEventListener('click', function (event) {
+    //         event.preventDefault();
+    //         if (deleteAllBtn.classList.contains('disabled')) {
+    //             return;
+    //         }
+    //         const selected = Array.from(document.querySelectorAll('#orderTable .is_open:checked'));
+    //         if (!selected.length || !confirm('Delete selected orders?')) {
+    //             return;
+    //         }
+    //         bulkDeleteForm.querySelectorAll('input[name="ids[]"]').forEach(el => el.remove());
+    //         selected.forEach(cb => {
+    //             const input = document.createElement('input');
+    //             input.type = 'hidden';
+    //             input.name = 'ids[]';
+    //             input.value = cb.value;
+    //             bulkDeleteForm.appendChild(input);
+    //         });
+    //         bulkDeleteForm.submit();
+    //     });
+    // }
 
-    document.addEventListener('click', function (event) {
-        const deleteBtn = event.target.closest('.order-delete-btn');
-        if (!deleteBtn || !deleteForm) {
-            return;
-        }
-        event.preventDefault();
-        if (!confirm('Delete this order?')) {
-            return;
-        }
-        deleteForm.action = deleteBtn.dataset.route;
-        deleteForm.submit();
-    });
+    // Single delete functionality commented out
+    // document.addEventListener('click', function (event) {
+    //     const deleteBtn = event.target.closest('.order-delete-btn');
+    //     if (!deleteBtn || !deleteForm) {
+    //         return;
+    //     }
+    //     event.preventDefault();
+    //     if (!confirm('Delete this order?')) {
+    //         return;
+    //     }
+    //     deleteForm.action = deleteBtn.dataset.route;
+    //     deleteForm.submit();
+    // });
 });
 </script>
 @endsection

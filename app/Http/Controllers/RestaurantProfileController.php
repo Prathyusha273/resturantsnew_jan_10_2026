@@ -45,26 +45,48 @@ class RestaurantProfileController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        $settings = DB::table('settings')
-            ->whereIn('document_name', ['AdminCommission', 'placeholderImage'])
-            ->get()
-            ->keyBy('document_name')
-            ->map(function ($setting) {
-                $setting->fields = json_decode($setting->fields ?? '[]', true) ?? [];
 
-                return $setting;
-            });
+        // Cache settings (5 minutes)
+        $settings = \Illuminate\Support\Facades\Cache::remember('settings_admin_placeholder', 300, function () {
+            return DB::table('settings')
+                ->whereIn('document_name', ['AdminCommission', 'placeholderImage'])
+                ->select(['document_name', 'fields'])
+                ->get()
+                ->keyBy('document_name')
+                ->map(function ($setting) {
+                    $setting->fields = json_decode($setting->fields ?? '[]', true) ?? [];
+                    return $setting;
+                });
+        });
+
         $vendor = $this->findVendorForUser($user);
+
+        // Cache story (5 minutes)
         $story = $vendor
-            ? Story::where('vendor_id', $vendor->id)->latest('created_at')->first()
+            ? \Illuminate\Support\Facades\Cache::remember('story_vendor_' . $vendor->id, 300, function () use ($vendor) {
+                return Story::where('vendor_id', $vendor->id)->latest('created_at')->first();
+            })
             : null;
+
+        // Cache zones, cuisines, categories (5 minutes)
+        $zones = \Illuminate\Support\Facades\Cache::remember('zones_active', 300, function () {
+            return Zone::active()->orderBy('name')->select(['id', 'name'])->get();
+        });
+
+        $cuisines = \Illuminate\Support\Facades\Cache::remember('cuisines_active', 300, function () {
+            return VendorCuisine::active()->orderBy('title')->select(['id', 'title'])->get();
+        });
+
+        $categories = \Illuminate\Support\Facades\Cache::remember('categories_active', 300, function () {
+            return VendorCategory::active()->orderBy('title')->select(['id', 'title'])->get();
+        });
 
         return view('restaurant.myrestaurant', [
             'user' => $user,
             'vendor' => $vendor,
-            'zones' => Zone::active()->orderBy('name')->get(),
-            'cuisines' => VendorCuisine::active()->orderBy('title')->get(),
-            'categories' => VendorCategory::active()->orderBy('title')->get(),
+            'zones' => $zones,
+            'cuisines' => $cuisines,
+            'categories' => $categories,
             'story' => $story,
             'settings' => $settings,
             'currency' => $this->currencyMeta(),
@@ -96,7 +118,7 @@ class RestaurantProfileController extends Controller
                 'isOpen' => $request->boolean('is_open'),
                 'enabledDiveInFuture' => $request->boolean('enabled_dine_in_future'),
                 'categoryID' => array_values($request->input('category_ids', [])),
-                'cuisineID' => $request->input('cuisine_id'),
+                'cuisineID' => $request->input('cuisine_id') ?: null, // Store null if empty instead of empty string
             ];
 
             // 👇 Auto-generate createdAt only once
@@ -106,15 +128,36 @@ class RestaurantProfileController extends Controller
 
             // Category and cuisine titles...
             if ($request->filled('category_ids')) {
-                $payload['categoryTitle'] = VendorCategory::whereIn('id', $request->category_ids)
-                    ->pluck('title')
-                    ->filter()
-                    ->values()
-                    ->all();
+                // Use cached categories if available
+                $cachedCategories = \Illuminate\Support\Facades\Cache::get('categories_active');
+                if ($cachedCategories) {
+                    $payload['categoryTitle'] = $cachedCategories
+                        ->whereIn('id', $request->category_ids)
+                        ->pluck('title')
+                        ->filter()
+                        ->values()
+                        ->all();
+                } else {
+                    $payload['categoryTitle'] = VendorCategory::whereIn('id', $request->category_ids)
+                        ->pluck('title')
+                        ->filter()
+                        ->values()
+                        ->all();
+                }
             }
 
+            // Handle cuisine title
             if ($request->filled('cuisine_id')) {
-                $payload['cuisineTitle'] = optional(VendorCuisine::find($request->cuisine_id))->title;
+                // Use cached cuisines if available
+                $cachedCuisines = \Illuminate\Support\Facades\Cache::get('cuisines_active');
+                if ($cachedCuisines) {
+                    $payload['cuisineTitle'] = optional($cachedCuisines->firstWhere('id', $request->cuisine_id))->title;
+                } else {
+                    $payload['cuisineTitle'] = optional(VendorCuisine::find($request->cuisine_id))->title;
+                }
+            } else {
+                // Clear cuisine title if no cuisine selected
+                $payload['cuisineTitle'] = null;
             }
 
             // Admin commission
@@ -204,6 +247,10 @@ class RestaurantProfileController extends Controller
             $vendor->save();
 
             $this->storeStoryMedia($vendor, $request);
+
+            // Clear relevant caches after update
+            \Illuminate\Support\Facades\Cache::forget('story_vendor_' . $vendor->id);
+            $this->clearVendorCache();
         });
 
         return redirect()
@@ -324,13 +371,7 @@ class RestaurantProfileController extends Controller
             return $this->currencyMeta;
         }
 
-        $currency = Currency::where('isActive', true)->first();
-
-        return $this->currencyMeta = [
-            'symbol' => $currency->symbol ?? '₹',
-            'symbol_at_right' => (bool) ($currency->symbolAtRight ?? false),
-            'decimal_digits' => $currency->decimal_degits ?? 2,
-        ];
+        return $this->currencyMeta = $this->getCachedCurrency();
     }
 
     protected function filterOptions(): array
