@@ -120,14 +120,32 @@ class SignupController extends Controller
                     'profilePictureURL' => $photoURL,
                 ]);
 
-                DB::table('restaurant_vendor_users')->updateOrInsert(
-                    ['user_id' => (string) $user->id],
-                    [
-                        'user_id' => (string) $user->id,
-                        'uuid' => $user->firebase_id,
-                        'email' => $user->email,
-                    ]
-                );
+                // Try to insert into restaurant_vendor_users, but don't fail if it doesn't work
+                // This table is optional and shouldn't block user registration
+                try {
+                    $exists = DB::table('restaurant_vendor_users')
+                        ->where('user_id', (string) $user->id)
+                        ->exists();
+
+                    if (!$exists) {
+                        // Use raw SQL with NULL for id to handle auto-increment properly
+                        DB::statement(
+                            'INSERT INTO restaurant_vendor_users (id, user_id, uuid, email) VALUES (NULL, ?, ?, ?)',
+                            [(string) $user->id, $user->firebase_id, $user->email]
+                        );
+                    } else {
+                        // Update existing record
+                        DB::table('restaurant_vendor_users')
+                            ->where('user_id', (string) $user->id)
+                            ->update([
+                                'uuid' => $user->firebase_id,
+                                'email' => $user->email,
+                            ]);
+                    }
+                } catch (\Exception $e) {
+                    // Log the error but don't fail the transaction - this table is optional
+                    report($e);
+                }
 
                 return $user;
             });
