@@ -14,3 +14,7 @@ yarn-error.log
 /.idea
 /.vscode
 *.md
+.DS_Store
+.env
+*.sql
+*.txt
