@@ -47,7 +47,8 @@ class FoodController extends Controller
         $query = VendorProduct::with(['category:id,title'])
             ->select([
                 'id', 'name', 'description', 'merchant_price', 'price', 'disPrice', 'photo',
-                'publish', 'isAvailable', 'categoryID', 'updatedAt', 'available_days', 'available_timings'
+                'publish', 'isAvailable', 'categoryID', 'updatedAt', 'available_days', 'available_timings','options','addOnsTitle',
+                'addOnsPrice'
             ])
             ->where('vendorID', $vendor->id);
 
@@ -81,11 +82,15 @@ class FoodController extends Controller
 
         // Format updatedAt dates (don't recalculate online prices - use stored values)
         $foods->transform(function ($food) {
-            $food->formattedUpdatedAt = $food->updatedAt
-                ? Carbon::parse($food->updatedAt)
-                    ->timezone('Asia/Kolkata')
-                    ->format('M d, Y H:i')
-                : '—';
+            $updatedAt = $food->updatedAt;
+            if (!$updatedAt) {
+                $food->formattedUpdatedAt = '—';
+            } else {
+                $carbon = is_numeric($updatedAt)
+                    ? Carbon::createFromTimestamp((int) $updatedAt)
+                    : Carbon::parse($updatedAt);
+                $food->formattedUpdatedAt = $carbon->timezone('Asia/Kolkata')->format('M d, Y H:i');
+            }
 
             // Don't recalculate - always use stored price value
             // Manual edits should be preserved
@@ -1231,27 +1236,47 @@ class FoodController extends Controller
         $food->photos = !empty($gallery) ? json_encode($gallery, JSON_UNESCAPED_SLASHES) : null;
 
         // ===============================
-// ✅ SAVE FULL PRODUCT OPTIONS STRUCTURE
+// SAVE PRODUCT OPTIONS
 // ===============================
-        if ($request->filled('options_json')) {
 
-            $decodedOptions = json_decode($request->input('options_json'), true);
+        $optionsJson = $request->input('options_json');
 
-            if (is_array($decodedOptions)) {
+        $food->options = null;
+
+        if (!empty($optionsJson)) {
+
+            $decodedOptions = json_decode($optionsJson, true);
+
+            if (is_array($decodedOptions) && count($decodedOptions) > 0) {
 
                 $finalOptions = [];
 
                 foreach ($decodedOptions as $opt) {
 
-                    if (empty($opt['title'])) {
+                    // Ignore invalid options
+                    if (!is_array($opt)) {
                         continue;
                     }
 
-                    // 🔥 Store FULL structure exactly as received
+                    $title = trim($opt['title'] ?? '');
+                    $price = $opt['price'] ?? null;
+
+                    // Skip if title empty
+                    if ($title === '') {
+                        continue;
+                    }
+
+                    // Skip if price empty or zero (means not selected)
+                    if ($price === null || $price === '' || floatval($price) <= 0) {
+                        continue;
+                    }
+
                     $finalOptions[] = $opt;
                 }
 
-                $food->options = count($finalOptions) ? $finalOptions : null;
+                if (!empty($finalOptions)) {
+                    $food->options = $finalOptions;
+                }
             }
         }
 

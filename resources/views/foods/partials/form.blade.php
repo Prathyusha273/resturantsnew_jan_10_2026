@@ -728,6 +728,17 @@
     <div id="availability-section" style="display: none;">
         <div class="mb-3">
             <label class="control-label font-weight-bold">Select Available Days:</label>
+            <div class="mb-2">
+                <div class="form-check">
+                    <input type="checkbox"
+                           id="select_all_days"
+                           class="form-check-input">
+                    <label class="form-check-label font-weight-bold"
+                           for="select_all_days">
+                        Select All Days
+                    </label>
+                </div>
+            </div>
             <div class="row mt-2">
                 @foreach ($daysOfWeek as $day)
                     <div class="col-md-3 mb-2">

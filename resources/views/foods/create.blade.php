@@ -1849,14 +1849,23 @@
 
                             // 1️⃣ OPTIONS
                             if (key === 'options') {
+
                                 if (Array.isArray(product.options) && product.options.length > 0) {
-                                    product.options.forEach((opt, optIndex) => {
+
+                                    // 🔥 Only keep selected options
+                                    const selectedOptions = product.options.filter(opt => opt.is_available === true);
+
+                                    selectedOptions.forEach((opt, optIndex) => {
+
                                         const input = document.createElement('input');
                                         input.type = 'hidden';
                                         input.name = `selected_products[${index}][options][${optIndex}]`;
-                                        input.value = JSON.stringify(opt);   // 🔥 IMPORTANT FIX
+                                        input.value = JSON.stringify(opt);
+
                                         inputsContainer.appendChild(input);
+
                                     });
+
                                 }
                             } else if (key === 'addons') {
                                 if (product.addons && product.addons.length > 0) {
@@ -2033,6 +2042,7 @@
                 // Append and show
                 document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+
                 const modal = $(`#optionsModal${productId}`);
                 modal.modal({
                     backdrop: 'static',
@@ -2174,6 +2184,17 @@
                                 <div class="modal-body">
                                     <div class="mb-3">
                                         <label class="font-weight-bold">Select Available Days:</label>
+                                           <div class="mb-2">
+    <div class="form-check">
+        <input type="checkbox"
+               class="form-check-input"
+               id="select_all_days_${productId}">
+        <label class="form-check-label font-weight-bold"
+               for="select_all_days_${productId}">
+            Select All Days
+        </label>
+    </div>
+</div>
                                         <div class="row mt-2">
                 `;
 
@@ -2289,24 +2310,18 @@
 
                 // Add modal to body
                 document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-                // Show modal
                 $(`#availabilityModal${productId}`).modal('show');
+                setTimeout(() => {
+                    $(`#availabilityModal${productId}`)
+                        .find('.day-checkbox-modal:checked')
+                        .trigger('change');
+                }, 50);
+                // Auto trigger checked days to show timing slots
+                $(`#availabilityModal${productId}`)
+                    .find('.day-checkbox-modal:checked')
+                    .trigger('change');
 
-                // Handle day checkbox changes
-                $(`#availabilityModal${productId}`).on('change', '.day-checkbox-modal', function() {
-                    const day = $(this).data('day');
-                    const isChecked = $(this).is(':checked');
-                    $(`#availabilityModal${productId} .day-timings-group-modal[data-day="${day}"]`).toggle(isChecked);
 
-                    // If checked and no slots, add one empty slot
-                    if (isChecked) {
-                        const timingsList = $(`#availabilityModal${productId} .timings-list-modal[data-day="${day}"]`);
-                        if (timingsList.children().length === 0) {
-                            addTimeSlotModal(productId, day);
-                        }
-                    }
-                });
 
                 // Handle add time slot
                 $(`#availabilityModal${productId}`).on('click', '.add-time-slot-modal', function() {
@@ -2326,7 +2341,7 @@
             };
 
             // Add time slot in modal
-            function addTimeSlotModal(productId, day) {
+            window.addTimeSlotModal = function(productId, day) {
                 const timingsList = $(`#availabilityModal${productId} .timings-list-modal[data-day="${day}"]`);
                 // Get the highest index for this day
                 let maxIndex = -1;
@@ -2415,7 +2430,7 @@
                 if (updatedOptions.length > 0) {
                     selectedProducts[productId].options = updatedOptions;
                 } else {
-                    delete selectedProducts[productId].options; // 🔥 IMPORTANT
+                    selectedProducts[productId].options = [];
                 }
 
                 $(`#optionsModal${productId}`).modal('hide');
@@ -2480,6 +2495,48 @@
             // keeps old calls from breaking the page
         }
 
+        // SELECT ALL DAYS
+        $(document).on('change', '[id^="select_all_days_"]', function () {
+
+            const productId = $(this).attr('id').replace('select_all_days_', '');
+            const checked = $(this).is(':checked');
+
+            const modal = $(`#availabilityModal${productId}`);
+
+            modal.find('.day-checkbox-modal')
+                .prop('checked', checked)
+                .trigger('change');
+        });
+
+
+        // INDIVIDUAL DAY CHECKBOX
+        $(document).on('change', '.day-checkbox-modal', function () {
+
+            const modal = $(this).closest('.modal');
+            const day = $(this).data('day');
+            const isChecked = $(this).is(':checked');
+
+            // Show or hide the timing section
+            modal.find(`.day-timings-group-modal[data-day="${day}"]`)
+                .toggle(isChecked);
+
+            // Add first time slot automatically
+            if (isChecked) {
+                const timingsList = modal.find(`.timings-list-modal[data-day="${day}"]`);
+
+                if (timingsList.children().length === 0) {
+                    const productId = modal.attr('id').replace('availabilityModal','');
+                    addTimeSlotModal(productId, day);
+                }
+            }
+
+            // Update "Select All Days" checkbox
+            const totalDays = modal.find('.day-checkbox-modal').length;
+            const selectedDays = modal.find('.day-checkbox-modal:checked').length;
+
+            modal.find('[id^="select_all_days_"]').prop('checked', totalDays === selectedDays);
+
+        });
     </script>
 
     <style>

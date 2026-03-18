@@ -177,6 +177,8 @@
                         <th>Publish</th>
                         <th>Available</th>
                         <th>Availability Schedule</th>
+                        <th>Options</th>
+                        <th>Add-ons</th>
                         <th>Updated</th>
                         <th class="text-right">Actions</th>
                     </tr>
@@ -355,6 +357,67 @@
                                     </div>
                                 @else
                                     <span class="text-muted small">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @php
+                                    $options = is_array($food->options)
+                                        ? $food->options
+                                        : json_decode($food->options ?? '[]', true);
+                                @endphp
+
+                                @if(!empty($options))
+                                    <div class="small">
+                                        @foreach ($options as $opt)
+                                            <div>
+                                                <strong>{{ $opt['title'] ?? '' }}</strong>
+
+                                                @if(!empty($opt['subtitle']))
+                                                    – {{ $opt['subtitle'] }}
+                                                @endif
+
+                                                @if(!empty($opt['original_price']))
+                                                    ( Original ₹{{ $opt['original_price'] }} )
+                                                @endif
+
+                                                @if(!empty($opt['price']))
+                                                    | Price ₹{{ $opt['price'] }}
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @php
+                                    $titles = is_array($food->addOnsTitle)
+                                        ? $food->addOnsTitle
+                                        : json_decode($food->addOnsTitle ?? '[]', true);
+
+                                    $prices = is_array($food->addOnsPrice)
+                                        ? $food->addOnsPrice
+                                        : json_decode($food->addOnsPrice ?? '[]', true);
+                                @endphp
+
+                                @if(!empty($titles))
+                                    <div class="small">
+                                        @foreach($titles as $i => $title)
+                                            <div>
+                                                <strong>{{ $title }}</strong>
+
+                                                @if(isset($prices[$i]))
+                                                    <span class="badge badge-light ml-1">
+₹{{ number_format((float)$prices[$i],2) }}
+</span>
+                                                @endif
+
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="text-muted">—</span>
                                 @endif
                             </td>
                             <td>{{ $food->formattedUpdatedAt }}</td>
@@ -636,4 +699,3 @@
         });
     </script>
 @endsection
-

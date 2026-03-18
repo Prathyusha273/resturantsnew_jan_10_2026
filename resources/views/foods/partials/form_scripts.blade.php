@@ -8,6 +8,20 @@
         const availabilitySection = document.getElementById('availability-section');
         const availabilitySummary = document.getElementById('availability-summary');
         const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+        const selectAllDays = document.getElementById('select_all_days');
+
+        if (selectAllDays) {
+            selectAllDays.addEventListener('change', function () {
+
+                const checked = this.checked;
+
+                dayCheckboxes.forEach(cb => {
+                    cb.checked = checked;
+                    cb.dispatchEvent(new Event('change'));
+                });
+
+            });
+        }
 
         if (toggleBtn && availabilitySection) {
             toggleBtn.addEventListener('click', function() {
@@ -19,12 +33,16 @@
             });
         }
 
+
         if (dayCheckboxes.length > 0) {
             dayCheckboxes.forEach(cb => {
+
                 cb.addEventListener('change', function () {
+
                     const day = this.dataset.day;
                     const group = document.querySelector(`.day-timings-group[data-day="${day}"]`);
                     if (!group) return;
+
                     group.style.display = this.checked ? 'block' : 'none';
 
                     if (this.checked) {
@@ -33,10 +51,18 @@
                             addTimeSlot(day);
                         }
                     }
+
+                    // ✅ Update Select All checkbox
+                    if (selectAllDays) {
+                        const total = dayCheckboxes.length;
+                        const checked = document.querySelectorAll('.day-checkbox:checked').length;
+                        selectAllDays.checked = total === checked;
+                    }
+
                 });
+
             });
         }
-
         window.addTimeSlot = function(day) {
             const timingsList = document.querySelector(`.timings-list[data-day="${day}"]`);
             if (!timingsList) return;
@@ -112,6 +138,18 @@
                 const row = e.target.closest('.repeatable-row');
                 if (row) row.remove();
             }
+        });
+        // ✅ Auto check "Select All Days" if all days already selected
+        if (selectAllDays) {
+            const total = dayCheckboxes.length;
+            const checked = document.querySelectorAll('.day-checkbox:checked').length;
+            selectAllDays.checked = total === checked;
+        }
+
+        document.querySelectorAll('.day-checkbox:checked').forEach(cb => {
+            const day = cb.dataset.day;
+            const group = document.querySelector(`.day-timings-group[data-day="${day}"]`);
+            if (group) group.style.display = 'block';
         });
 
         document.querySelectorAll('.day-checkbox:checked').forEach(cb => {
