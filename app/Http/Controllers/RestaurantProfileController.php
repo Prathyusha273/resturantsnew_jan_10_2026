@@ -553,29 +553,50 @@ class RestaurantProfileController extends Controller
 
             // ------------------ Restaurant Main Photo ------------------
             if ($request->boolean('remove_photo')) {
-
-                $this->deleteFileIfLocal($vendor->photo ?? null);
+                try {
+                    $this->deleteFileIfLocal($vendor->photo ?? null);
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to delete existing restaurant photo during remove action', [
+                        'error' => $e->getMessage(),
+                        'vendor_id' => $vendor->id ?? null,
+                    ]);
+                }
                 $payload['photo'] = null;
 
             } elseif ($request->hasFile('photo') && $request->file('photo')->isValid()) {
-                // Only upload if file is valid and Firebase is available
+                // Delete old image if possible, but never block new image upload.
                 try {
-                // delete old
-                $this->deleteFileIfLocal($vendor->photo ?? null);
-
-                // save new to Firebase Storage
-                $payload['photo'] = $this->firebaseStorage->uploadFile(
-                    $request->file('photo'),
-                    'restaurants/photo_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
-                );
+                    $this->deleteFileIfLocal($vendor->photo ?? null);
                 } catch (\Exception $e) {
-                    // If Firebase upload fails, log error but don't break the form submission
+                    \Log::warning('Failed to delete existing restaurant photo before upload', [
+                        'error' => $e->getMessage(),
+                        'vendor_id' => $vendor->id ?? null,
+                    ]);
+                }
+
+                try {
+                    // Primary path: Firebase upload (existing behavior)
+                    $payload['photo'] = $this->firebaseStorage->uploadFile(
+                        $request->file('photo'),
+                        'restaurants/photo_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
+                    );
+                } catch (\Exception $e) {
+                    // Fallback: save locally so image updates still work when Firebase fails.
                     \Log::error('Failed to upload photo to Firebase Storage', [
                         'error' => $e->getMessage(),
                         'vendor_id' => $vendor->id ?? null
                     ]);
-                    // Keep existing photo if upload fails
-                    $payload['photo'] = $vendor->photo ?? null;
+                    try {
+                        $localPath = $request->file('photo')->store('restaurants', 'public');
+                        $payload['photo'] = Storage::url($localPath);
+                    } catch (\Exception $localException) {
+                        \Log::error('Failed to upload photo to local storage fallback', [
+                            'error' => $localException->getMessage(),
+                            'vendor_id' => $vendor->id ?? null,
+                        ]);
+                        // Final fallback: preserve current value.
+                        $payload['photo'] = $vendor->photo ?? null;
+                    }
                 }
             }
 

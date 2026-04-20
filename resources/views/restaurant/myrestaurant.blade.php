@@ -677,12 +677,12 @@ $workingHours = old(
                                          id="restaurant-photo-preview"
                                          width="150px" height="150px"
                                          data-placeholder="{{ $placeholderImageUrl }}" >
-                                    {{--<div class="d-flex justify-content-center gap-2">--}}
-                                    {{--                                        <button type="button" class="btn btn-outline-danger btn-sm"--}}
-                                    {{--                                                id="remove-photo-btn">--}}
-                                    {{--                                            <i class="fa fa-times"></i> {{ __('Remove Photo') }}--}}
-                                    {{--                                        </button>--}}
-                                    {{--                                    </div>--}}
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                                id="remove-photo-btn">
+                                            <i class="fa fa-times"></i> {{ __('Remove Photo') }}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="col-md-8">
                                     <div class="form-group">

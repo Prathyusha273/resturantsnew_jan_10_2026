@@ -6,6 +6,15 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateRestaurantRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        // Some clients can send a string value for file inputs (e.g. stale form state).
+        // Normalize to null so nullable image validation works as intended.
+        if (!$this->hasFile('photo') && !is_null($this->input('photo'))) {
+            $this->merge(['photo' => null]);
+        }
+    }
+
     public function authorize(): bool
     {
         return $this->user() !== null;
